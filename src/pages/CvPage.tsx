@@ -16,8 +16,9 @@ import {
   addAnalysis,
   deleteAnalysis,
   buildPrompt,
-  analyzeWithMistral,
+  analyzeWithApi,
   extractScore,
+  PROVIDER_PRESETS,
 } from '../cv'
 
 const areaClass =
@@ -62,7 +63,7 @@ export function CvPage() {
     setLoading(true)
     setError('')
     try {
-      const result = await analyzeWithMistral(settings.cvText, offer, settings.mistralKey)
+      const result = await analyzeWithApi(settings.cvText, offer, settings)
       const a = addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api' })
       setSelected(a.id)
     } catch (e) {
@@ -124,30 +125,55 @@ export function CvPage() {
             >
               <ClipboardPaste size={15} /> Coller le résultat
             </button>
-            {settings.mistralKey && (
+            {settings.apiKey && (
               <button
                 onClick={runApi}
                 disabled={!ready || loading}
                 className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 disabled:opacity-50"
               >
                 {loading ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-                {loading ? 'Analyse en cours…' : 'Analyser avec Mistral'}
+                {loading ? 'Analyse en cours…' : `Analyser (${settings.model})`}
               </button>
             )}
           </div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
 
           <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-              <KeyRound size={15} className="text-slate-400" /> Clé API Mistral (optionnel)
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <KeyRound size={15} className="text-slate-400" /> Fournisseur IA (optionnel)
             </div>
-            {settings.mistralKey ? (
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <select
+                className={areaClass}
+                value={PROVIDER_PRESETS.find((p) => p.baseUrl === settings.baseUrl)?.id ?? 'custom'}
+                onChange={(e) => {
+                  const preset = PROVIDER_PRESETS.find((p) => p.id === e.target.value)
+                  if (preset) saveSettings({ baseUrl: preset.baseUrl, model: preset.model })
+                }}
+              >
+                {PROVIDER_PRESETS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+                <option value="custom" disabled>
+                  Autre (URL personnalisée)
+                </option>
+              </select>
+              <input
+                className={areaClass}
+                value={settings.model}
+                onChange={(e) => saveSettings({ model: e.target.value })}
+                placeholder="Modèle (ex: glm-4.5-flash)"
+              />
+            </div>
+            {settings.apiKey ? (
               <div className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                  <ShieldCheck size={13} /> Clé enregistrée (•••{settings.mistralKey.slice(-4)})
+                  <ShieldCheck size={13} /> Clé enregistrée (•••{settings.apiKey.slice(-4)})
                 </span>
                 <button
-                  onClick={() => saveSettings({ mistralKey: '' })}
+                  onClick={() => saveSettings({ apiKey: '' })}
                   className="text-xs text-rose-400 hover:underline"
                 >
                   Effacer la clé
@@ -161,12 +187,15 @@ export function CvPage() {
                   className={areaClass}
                   value={keyInput}
                   onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder="Clé gratuite sur console.mistral.ai"
+                  placeholder={
+                    PROVIDER_PRESETS.find((p) => p.baseUrl === settings.baseUrl)?.keyHint ??
+                    'Clé API du fournisseur'
+                  }
                 />
                 <button
                   onClick={() => {
                     if (keyInput.trim()) {
-                      saveSettings({ mistralKey: keyInput.trim() })
+                      saveSettings({ apiKey: keyInput.trim() })
                       setKeyInput('')
                     }
                   }}
@@ -177,8 +206,9 @@ export function CvPage() {
               </div>
             )}
             <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-              Stockée uniquement sur cet appareil, envoyée exclusivement à api.mistral.ai, et jamais
-              incluse dans l'export JSON.
+              Clé stockée uniquement sur cet appareil, envoyée exclusivement au fournisseur choisi
+              ({new URL(settings.baseUrl).host}), jamais incluse dans les exports. Rappel : le CV
+              envoyé contient des données personnelles — Mistral est hébergé en UE (RGPD), Z.ai non.
             </p>
           </section>
         </div>
