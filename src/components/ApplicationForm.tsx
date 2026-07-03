@@ -9,6 +9,14 @@ interface Props {
   onClose: () => void
 }
 
+export function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+const RELANCE_DAYS = 7
+
 const inputClass =
   'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
 
@@ -22,6 +30,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function ApplicationForm({ initial, onClose }: Props) {
+  const today = new Date().toISOString().slice(0, 10)
+  // La relance est proposée à J+7 tant que l'utilisateur ne l'a pas modifiée à la main
+  const [relanceDirty, setRelanceDirty] = useState(Boolean(initial))
   const [form, setForm] = useState({
     company: initial?.company ?? '',
     title: initial?.title ?? '',
@@ -31,13 +42,23 @@ export function ApplicationForm({ initial, onClose }: Props) {
     contact: initial?.contact ?? '',
     salary: initial?.salary ?? '',
     status: initial?.status ?? ('postulee' as Status),
-    appliedAt: initial?.appliedAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-    nextActionAt: initial?.nextActionAt?.slice(0, 10) ?? '',
+    appliedAt: initial?.appliedAt?.slice(0, 10) ?? today,
+    nextActionAt: initial?.nextActionAt?.slice(0, 10) ?? addDays(today, RELANCE_DAYS),
     notes: initial?.notes ?? '',
   })
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const value = e.target.value
+    if (k === 'nextActionAt') setRelanceDirty(true)
+    setForm((f) => ({
+      ...f,
+      [k]: value,
+      // la relance suit la date de candidature tant qu'elle n'a pas été éditée à la main
+      ...(k === 'appliedAt' && !relanceDirty && value
+        ? { nextActionAt: addDays(value, RELANCE_DAYS) }
+        : {}),
+    }))
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -90,7 +111,7 @@ export function ApplicationForm({ initial, onClose }: Props) {
           <Field label="Date de candidature">
             <input type="date" className={inputClass} value={form.appliedAt} onChange={set('appliedAt')} />
           </Field>
-          <Field label="Prochaine action / relance">
+          <Field label={relanceDirty ? 'Prochaine action / relance' : 'Relance (proposée à J+7)'}>
             <input type="date" className={inputClass} value={form.nextActionAt} onChange={set('nextActionAt')} />
           </Field>
           <Field label="Lieu">
