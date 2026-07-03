@@ -137,6 +137,13 @@ Réponds en français, structuré exactement ainsi :
 ## Note globale : X/100
 (adéquation réelle du CV avec CETTE offre précise)
 
+## Compatibilité ATS : X/100
+Les logiciels de tri (ATS) filtrent avant tout humain. Évalue :
+- Taux de couverture des mots-clés de l'offre : X% (mots-clés trouvés / attendus)
+- Mots-clés critiques PRÉSENTS dans le CV : liste
+- Mots-clés critiques ABSENTS (à intégrer en priorité) : liste, avec pour chacun où et comment l'insérer naturellement
+- Pièges de format qui gênent le parsing ATS repérés dans le texte (titres non standards, intitulés flous…)
+
 ## Points forts (par rapport à l'offre)
 - ...
 
@@ -144,13 +151,11 @@ Réponds en français, structuré exactement ainsi :
 - ...
 
 ## Améliorations concrètes
-Pour chaque point : ce qu'il faut changer, et un exemple de reformulation prêt à copier.
-
-## Mots-clés de l'offre absents du CV
-(importants pour les filtres ATS)
+Pour chaque point : ce qu'il faut changer, et un exemple de reformulation prêt à copier,
+en intégrant les mots-clés ATS manquants là où c'est pertinent.
 
 ## Verdict du recruteur
-2-3 phrases : ce CV passerait-il ton tri ? Pourquoi ?
+2-3 phrases : ce CV passerait-il d'abord le filtre ATS, puis ton tri humain ? Pourquoi ?
 
 --- FICHE DE POSTE ---
 ${offer}
