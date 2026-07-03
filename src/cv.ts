@@ -10,9 +10,30 @@ const LEGACY_SETTINGS = 'jobpilot.settings.v1'
 const LEGACY_ANALYSES = 'jobpilot.cv-analyses.v1'
 
 export interface Settings {
-  mistralKey: string
+  apiKey: string
+  baseUrl: string
+  model: string
   cvText: string
 }
+
+// Les deux fournisseurs exposent une API au format OpenAI (chat/completions) :
+// en changer revient à changer l'URL de base et le nom du modèle.
+export const PROVIDER_PRESETS = [
+  {
+    id: 'mistral',
+    label: 'Mistral (UE, RGPD)',
+    baseUrl: 'https://api.mistral.ai/v1',
+    model: 'mistral-large-latest',
+    keyHint: 'Clé gratuite sur console.mistral.ai',
+  },
+  {
+    id: 'zai',
+    label: 'Z.ai (GLM)',
+    baseUrl: 'https://api.z.ai/api/paas/v4',
+    model: 'glm-4.6',
+    keyHint: 'Clé sur z.ai — modèle gratuit dispo : glm-4.5-flash',
+  },
+] as const
 
 export interface CvAnalysis {
   id: string
@@ -23,7 +44,13 @@ export interface CvAnalysis {
   mode: 'api' | 'manuel'
 }
 
-let settingsCache: Settings = { mistralKey: '', cvText: '' }
+const DEFAULT_SETTINGS: Settings = {
+  apiKey: '',
+  baseUrl: PROVIDER_PRESETS[0].baseUrl,
+  model: PROVIDER_PRESETS[0].model,
+  cvText: '',
+}
+let settingsCache: Settings = DEFAULT_SETTINGS
 let analysesCache: CvAnalysis[] = []
 const listeners = new Set<() => void>()
 const notify = () => listeners.forEach((l) => l())
@@ -42,10 +69,16 @@ async function init() {
       apiGet<CvAnalysis[]>('analyses'),
     ])
     const legacySettings = localStorage.getItem(LEGACY_SETTINGS)
-    if (!settings.cvText && !settings.mistralKey && legacySettings) {
+    if (!settings.cvText && !settings.apiKey && legacySettings) {
       Object.assign(settings, JSON.parse(legacySettings))
       apiSend('PUT', 'settings', settings)
       localStorage.removeItem(LEGACY_SETTINGS)
+    }
+    // Migration de l'ancien réglage mono-fournisseur (mistralKey) vers le format générique
+    const old = settings as Partial<Settings> & { mistralKey?: string }
+    if (old.mistralKey && !settings.apiKey) {
+      settings.apiKey = old.mistralKey
+      apiSend('PUT', 'settings', { apiKey: old.mistralKey, mistralKey: '' })
     }
     const legacyAnalyses = localStorage.getItem(LEGACY_ANALYSES)
     let allAnalyses = analyses
@@ -54,7 +87,10 @@ async function init() {
       if (allAnalyses.length > 0) apiSend('PUT', 'analyses', allAnalyses)
       localStorage.removeItem(LEGACY_ANALYSES)
     }
-    settingsCache = { mistralKey: '', cvText: '', ...settings }
+    settingsCache = {
+      ...DEFAULT_SETTINGS,
+      ...Object.fromEntries(Object.entries(settings).filter(([, v]) => v)),
+    }
     analysesCache = allAnalyses.sort((a, b) => b.date.localeCompare(a.date))
     notify()
   } catch {
@@ -123,23 +159,24 @@ ${offer}
 ${cv}`
 }
 
-export async function analyzeWithMistral(cv: string, offer: string, apiKey: string): Promise<string> {
-  const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+export async function analyzeWithApi(cv: string, offer: string, s: Settings): Promise<string> {
+  const res = await fetch(`${s.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${s.apiKey}`,
     },
     body: JSON.stringify({
-      model: 'mistral-large-latest',
+      model: s.model,
       messages: [{ role: 'user', content: buildPrompt(cv, offer) }],
       temperature: 0.3,
     }),
   })
   if (!res.ok) {
     if (res.status === 401) throw new Error('Clé API invalide ou expirée.')
-    if (res.status === 429) throw new Error('Limite de débit atteinte (palier gratuit) — réessaie dans une minute.')
-    throw new Error(`Erreur Mistral (${res.status}).`)
+    if (res.status === 404) throw new Error(`Modèle « ${s.model} » introuvable chez ce fournisseur.`)
+    if (res.status === 429) throw new Error('Limite de débit atteinte — réessaie dans une minute.')
+    throw new Error(`Erreur API (${res.status}).`)
   }
   const data = await res.json()
   const content = data.choices?.[0]?.message?.content
