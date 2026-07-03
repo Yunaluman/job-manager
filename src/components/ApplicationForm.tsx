@@ -6,6 +6,8 @@ import { addApplication, updateApplication } from '../storage'
 
 interface Props {
   initial?: Application
+  // Pré-remplissage à la création (ajout express) — ignoré en édition
+  defaults?: Partial<Application>
   onClose: () => void
 }
 
@@ -29,19 +31,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-export function ApplicationForm({ initial, onClose }: Props) {
+export function ApplicationForm({ initial, defaults, onClose }: Props) {
   const today = new Date().toISOString().slice(0, 10)
   // La relance est proposée à J+7 tant que l'utilisateur ne l'a pas modifiée à la main
   const [relanceDirty, setRelanceDirty] = useState(Boolean(initial))
   const [form, setForm] = useState({
-    company: initial?.company ?? '',
-    title: initial?.title ?? '',
-    url: initial?.url ?? '',
-    location: initial?.location ?? '',
-    source: initial?.source ?? '',
+    company: initial?.company ?? defaults?.company ?? '',
+    title: initial?.title ?? defaults?.title ?? '',
+    url: initial?.url ?? defaults?.url ?? '',
+    location: initial?.location ?? defaults?.location ?? '',
+    source: initial?.source ?? defaults?.source ?? '',
     contact: initial?.contact ?? '',
-    salary: initial?.salary ?? '',
-    status: initial?.status ?? ('postulee' as Status),
+    salary: initial?.salary ?? defaults?.salary ?? '',
+    status: initial?.status ?? defaults?.status ?? ('postulee' as Status),
     appliedAt: initial?.appliedAt?.slice(0, 10) ?? today,
     nextActionAt: initial?.nextActionAt?.slice(0, 10) ?? addDays(today, RELANCE_DAYS),
     notes: initial?.notes ?? '',

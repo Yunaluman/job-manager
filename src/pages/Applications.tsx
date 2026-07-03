@@ -8,10 +8,15 @@ import {
   Trash2,
   ExternalLink,
   AlarmClock,
+  Zap,
+  Loader2,
+  X,
 } from 'lucide-react'
 import type { Application, Status } from '../types'
 import { STATUSES, STATUS_LABELS } from '../types'
 import { useApplications, updateApplication, deleteApplication, isDue } from '../storage'
+import { useSettings } from '../cv'
+import { parseOffer } from '../parse'
 import { StatusBadge } from '../components/StatusBadge'
 import { ApplicationForm } from '../components/ApplicationForm'
 
@@ -27,6 +32,8 @@ export function Applications() {
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<Application | null>(null)
   const [creating, setCreating] = useState(false)
+  const [quickOpen, setQuickOpen] = useState(false)
+  const [defaults, setDefaults] = useState<Partial<Application> | undefined>()
 
   const q = query.toLowerCase()
   const filtered = apps.filter(
@@ -78,6 +85,12 @@ export function Applications() {
             ))}
           </div>
           <button
+            onClick={() => setQuickOpen(true)}
+            className="flex items-center gap-2 rounded-lg border border-indigo-500/40 px-4 py-2 text-sm font-medium text-indigo-300 hover:bg-indigo-500/10"
+          >
+            <Zap size={16} /> Ajout express
+          </button>
+          <button
             onClick={() => setCreating(true)}
             className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
           >
@@ -95,12 +108,99 @@ export function Applications() {
       {(creating || editing) && (
         <ApplicationForm
           initial={editing ?? undefined}
+          defaults={defaults}
           onClose={() => {
             setCreating(false)
             setEditing(null)
+            setDefaults(undefined)
           }}
         />
       )}
+
+      {quickOpen && (
+        <QuickAdd
+          onClose={() => setQuickOpen(false)}
+          onParsed={(d) => {
+            setDefaults(d)
+            setQuickOpen(false)
+            setCreating(true)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function QuickAdd({
+  onClose,
+  onParsed,
+}: {
+  onClose: () => void
+  onParsed: (d: Partial<Application>) => void
+}) {
+  const settings = useSettings()
+  const [text, setText] = useState('')
+  const [url, setUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function run() {
+    if (!text.trim()) return
+    setLoading(true)
+    const parsed = await parseOffer(text, url, settings)
+    setLoading(false)
+    onParsed({ ...parsed, status: 'a_postuler' })
+  }
+
+  const inputClass =
+    'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <Zap size={17} className="text-indigo-400" /> Ajout express
+          </h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-200">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="mb-3 text-xs text-slate-400">
+          Colle le texte de l'offre : entreprise, poste, lieu et salaire seront extraits
+          {settings.apiKey ? ` par l'IA (${settings.model})` : ' automatiquement'}, puis tu valides.
+        </p>
+        <textarea
+          className={inputClass}
+          rows={9}
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Colle ici le texte complet de l'offre (HelloWork, LinkedIn, Indeed…)"
+        />
+        <input
+          type="url"
+          className={`${inputClass} mt-3`}
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="Lien de l'offre (optionnel — détecte aussi la source)"
+        />
+        <div className="mt-4 flex justify-end gap-3">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:text-slate-100">
+            Annuler
+          </button>
+          <button
+            onClick={run}
+            disabled={!text.trim() || loading}
+            className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 disabled:opacity-50"
+          >
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
+            {loading ? 'Extraction…' : 'Extraire et pré-remplir'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

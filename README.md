@@ -20,6 +20,8 @@ Prérequis : Node 22+, pnpm 9+.
 
 ### Candidatures (`/candidatures`)
 - Vue **tableau** (tri visuel, liens vers les offres) et vue **kanban** (glisser-déposer une carte pour changer son statut).
+- **Ajout express** : coller le texte d'une offre → entreprise, poste, lieu, salaire et source extraits automatiquement (IA si clé configurée, heuristique locale sinon), formulaire pré-rempli à valider.
+- Relance proposée par défaut à J+7 ; passage en « Relancée » = prochaine relance replanifiée automatiquement.
 - Statuts : À postuler → Postulée → Relancée → Entretien → Offre / Refusée.
 - Chaque changement de statut est enregistré dans l'historique de la candidature.
 - Recherche par entreprise, poste ou lieu.
@@ -27,11 +29,11 @@ Prérequis : Node 22+, pnpm 9+.
 ### Amélioration CV (`/cv`)
 Un « recruteur senior » (IA) note ton CV sur 100 face à une fiche de poste : points forts/faibles, reformulations prêtes à copier, mots-clés ATS manquants, verdict.
 
+Le CV se dépose en fichier (PDF/DOCX/TXT, extraction du texte 100% locale) ou se colle en texte ; il est mémorisé pour les analyses suivantes. L'analyse inclut un score **Compatibilité ATS /100** : couverture des mots-clés de l'offre, mots-clés critiques absents et où les insérer.
+
 Deux modes :
 1. **Sans API (gratuit)** : « Copier le prompt » → coller dans Claude / ChatGPT / Mistral (abonnement chat) → « Coller le résultat » pour l'archiver. La note /100 est extraite automatiquement.
-2. **API Mistral** : renseigner une clé (gratuite sur [console.mistral.ai](https://console.mistral.ai)) → bouton « Analyser avec Mistral » en un clic.
-
-Le CV collé est mémorisé sur l'appareil pour les analyses suivantes.
+2. **API directe** : fournisseur configurable (presets Mistral et Z.ai/GLM, ou toute API au format OpenAI via URL personnalisée) → analyse en un clic.
 
 ### Exports (barre latérale)
 - **Excel (.xlsx)** : onglet « Candidatures », dates Excel réelles, pour consulter/partager.
@@ -57,7 +59,9 @@ src/
 ├── types.ts              # Modèle Application, statuts, libellés/couleurs
 ├── api.ts                # Client HTTP vers le serveur local (écritures optimistes)
 ├── storage.ts            # Persistance candidatures + exports Excel/JSON
-├── cv.ts                 # Module CV : réglages, analyses, prompt recruteur, appel Mistral
+├── cv.ts                 # Module CV : réglages, analyses, prompt recruteur+ATS, appel IA
+├── parse.ts              # Ajout express : extraction d'offre (IA ou heuristique)
+├── extract.ts            # Extraction texte des fichiers CV (PDF/DOCX/TXT, local)
 ├── components/
 │   ├── Layout.tsx        # Sidebar + navigation + boutons export/import
 │   ├── ApplicationForm.tsx  # Modal création/édition
