@@ -17,6 +17,7 @@ Prérequis : Node 22+, pnpm 9+.
 ### Tableau de bord (`/`)
 - Compteurs : candidatures envoyées, entretiens, offres, refus, taux d'entretien.
 - **Relances à faire** : toute candidature dont la date de « prochaine action » est atteinte ou dépassée remonte ici automatiquement (sauf si refusée ou offre reçue).
+- **Par plateforme** : candidatures envoyées, entretiens, taux de réponse et taux d'entretien par source (LinkedIn, HelloWork…) — pour savoir où investir son temps.
 
 ### Candidatures (`/candidatures`)
 - Vue **tableau** (tri visuel, liens vers les offres) et vue **kanban** (glisser-déposer une carte pour changer son statut).
@@ -24,6 +25,7 @@ Prérequis : Node 22+, pnpm 9+.
 - Relance proposée par défaut à J+7 ; passage en « Relancée » = prochaine relance replanifiée automatiquement.
 - Statuts : À postuler → Postulée → Relancée → Entretien → Offre / Refusée.
 - Chaque changement de statut est enregistré dans l'historique de la candidature.
+- **Fiche détail** (clic sur une ligne) : toutes les infos, changement de statut rapide, et timeline de l'historique.
 - Recherche par entreprise, poste ou lieu.
 
 ### Amélioration CV (`/cv`)
@@ -83,6 +85,6 @@ Stack : Vite · React 19 · TypeScript · TanStack Router · Tailwind CSS v4 · 
 
 ## Roadmap
 
-- [ ] Stats par source (taux de réponse LinkedIn vs HelloWork vs Indeed)
 - [ ] Tri des colonnes du tableau
+- [ ] Lettre de motivation IA (même mécanique que le module CV)
 - [ ] Gestion utilisateurs + backend (version SaaS) — **la clé API devra alors passer côté serveur**
