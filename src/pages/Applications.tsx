@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import {
   Plus,
   Search,
@@ -214,6 +215,7 @@ function TableView({
   onEdit: (a: Application) => void
   onDelete: (a: Application) => void
 }) {
+  const navigate = useNavigate()
   if (apps.length === 0)
     return (
       <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">
@@ -236,12 +238,22 @@ function TableView({
         </thead>
         <tbody className="divide-y divide-slate-800/70">
           {apps.map((a) => (
-            <tr key={a.id} className="group bg-slate-900/40 hover:bg-slate-800/40">
+            <tr
+              key={a.id}
+              onClick={() => void navigate({ to: '/candidatures/$id', params: { id: a.id } })}
+              className="group cursor-pointer bg-slate-900/40 hover:bg-slate-800/40"
+            >
               <td className="px-4 py-3 font-medium">
                 <span className="flex items-center gap-1.5">
                   {a.company}
                   {a.url && (
-                    <a href={a.url} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-indigo-400">
+                    <a
+                      href={a.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-slate-500 hover:text-indigo-400"
+                    >
                       <ExternalLink size={13} />
                     </a>
                   )}
@@ -261,10 +273,22 @@ function TableView({
               <td className="px-4 py-3 text-slate-400">{a.source || '—'}</td>
               <td className="px-4 py-3">
                 <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button onClick={() => onEdit(a)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-700 hover:text-slate-100">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit(a)
+                    }}
+                    className="rounded-md p-1.5 text-slate-400 hover:bg-slate-700 hover:text-slate-100"
+                  >
                     <Pencil size={14} />
                   </button>
-                  <button onClick={() => onDelete(a)} className="rounded-md p-1.5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete(a)
+                    }}
+                    className="rounded-md p-1.5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
+                  >
                     <Trash2 size={14} />
                   </button>
                 </div>

@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { AlertCircle, TrendingUp, Send, MessageSquare, XCircle, Trophy } from 'lucide-react'
+import { AlertCircle, TrendingUp, Send, MessageSquare, XCircle, Trophy, Globe } from 'lucide-react'
+import type { Application } from '../types'
 import { useApplications, isDue } from '../storage'
 import { StatusBadge } from '../components/StatusBadge'
 
@@ -19,6 +20,75 @@ function StatCard({
       <div className={`mb-3 inline-flex rounded-xl p-2.5 ${accent}`}>{icon}</div>
       <div className="text-3xl font-bold tabular-nums">{value}</div>
       <div className="mt-1 text-sm text-slate-400">{label}</div>
+    </div>
+  )
+}
+
+function SourceStats({ apps }: { apps: Application[] }) {
+  // On ne compte que les candidatures réellement envoyées
+  const sent = apps.filter((a) => a.status !== 'a_postuler')
+  const bySource = new Map<string, Application[]>()
+  for (const a of sent) {
+    const key = a.source?.trim() || 'Autre'
+    bySource.set(key, [...(bySource.get(key) ?? []), a])
+  }
+  const rows = [...bySource.entries()]
+    .map(([source, list]) => {
+      const entretiens = list.filter((a) => a.status === 'entretien' || a.status === 'offre').length
+      const reponses = entretiens + list.filter((a) => a.status === 'refusee').length
+      return {
+        source,
+        envoyees: list.length,
+        entretiens,
+        tauxReponse: Math.round((reponses / list.length) * 100),
+        tauxEntretien: Math.round((entretiens / list.length) * 100),
+      }
+    })
+    .sort((a, b) => b.envoyees - a.envoyees)
+
+  if (rows.length === 0) return null
+
+  return (
+    <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60">
+      <div className="flex items-center gap-2 border-b border-slate-800 px-5 py-4">
+        <Globe size={16} className="text-sky-400" />
+        <h2 className="font-semibold">Par plateforme</h2>
+        <span className="ml-auto text-xs text-slate-500">où investir ton temps</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+            <th className="px-5 py-2.5 font-medium">Source</th>
+            <th className="px-3 py-2.5 text-right font-medium">Envoyées</th>
+            <th className="px-3 py-2.5 text-right font-medium">Entretiens</th>
+            <th className="px-3 py-2.5 text-right font-medium">Tx réponse</th>
+            <th className="px-5 py-2.5 font-medium">Tx entretien</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-800/70">
+          {rows.map((r) => (
+            <tr key={r.source}>
+              <td className="px-5 py-3 font-medium">{r.source}</td>
+              <td className="px-3 py-3 text-right tabular-nums text-slate-300">{r.envoyees}</td>
+              <td className="px-3 py-3 text-right tabular-nums text-slate-300">{r.entretiens}</td>
+              <td className="px-3 py-3 text-right tabular-nums text-slate-300">{r.tauxReponse}%</td>
+              <td className="px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-full max-w-32 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-indigo-500"
+                      style={{ width: `${r.tauxEntretien}%` }}
+                    />
+                  </div>
+                  <span className="w-9 text-right text-xs tabular-nums text-slate-400">
+                    {r.tauxEntretien}%
+                  </span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -76,6 +146,8 @@ export function Dashboard() {
           </ul>
         )}
       </div>
+
+      <SourceStats apps={apps} />
     </div>
   )
 }

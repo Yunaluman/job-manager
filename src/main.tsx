@@ -10,6 +10,7 @@ import './index.css'
 import { Layout } from './components/Layout'
 import { Dashboard } from './pages/Dashboard'
 import { Applications } from './pages/Applications'
+import { ApplicationDetail } from './pages/ApplicationDetail'
 import { CvPage } from './pages/CvPage'
 
 const rootRoute = createRootRoute({ component: Layout })
@@ -26,13 +27,24 @@ const applicationsRoute = createRoute({
   component: Applications,
 })
 
+const applicationDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/candidatures/$id',
+  component: ApplicationDetail,
+})
+
 const cvRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/cv',
   component: CvPage,
 })
 
-const routeTree = rootRoute.addChildren([dashboardRoute, applicationsRoute, cvRoute])
+const routeTree = rootRoute.addChildren([
+  dashboardRoute,
+  applicationsRoute,
+  applicationDetailRoute,
+  cvRoute,
+])
 const router = createRouter({ routeTree })
 
 declare module '@tanstack/react-router' {
