@@ -8,7 +8,9 @@ import {
   Loader2,
   ClipboardPaste,
   ShieldCheck,
+  FileUp,
 } from 'lucide-react'
+import { extractTextFromFile } from '../extract'
 import {
   useSettings,
   useAnalyses,
@@ -40,6 +42,8 @@ export function CvPage() {
   const [pasteText, setPasteText] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [extracting, setExtracting] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
 
   const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
@@ -75,6 +79,29 @@ export function CvPage() {
 
   const current = analyses.find((a) => a.id === selected)
 
+  async function handleFile(file: File | undefined) {
+    if (!file) return
+    setExtracting(true)
+    setError('')
+    try {
+      const text = await extractTextFromFile(file)
+      if (!text) throw new Error('Aucun texte trouvé dans ce fichier (CV scanné en image ?).')
+      saveSettings({ cvText: text })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de lire ce fichier.")
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  function pickFile() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,.docx,.txt,.md'
+    input.onchange = () => handleFile(input.files?.[0])
+    input.click()
+  }
+
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight">
@@ -88,14 +115,38 @@ export function CvPage() {
         <div className="flex flex-col gap-6">
           <section>
             <label className="mb-1.5 block text-xs font-medium text-slate-400">
-              Ton CV (texte — colle-le une fois, il est mémorisé)
+              Ton CV — dépose le fichier ou colle le texte (mémorisé)
             </label>
+            <button
+              type="button"
+              onClick={pickFile}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragOver(true)
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOver(false)
+                void handleFile(e.dataTransfer.files?.[0])
+              }}
+              className={`mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm transition-colors ${
+                dragOver
+                  ? 'border-indigo-400 bg-indigo-500/10 text-indigo-300'
+                  : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+              }`}
+            >
+              {extracting ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
+              {extracting
+                ? 'Extraction du texte…'
+                : 'Déposer mon CV (PDF, DOCX, TXT) — traité localement, jamais envoyé'}
+            </button>
             <textarea
               className={areaClass}
-              rows={9}
+              rows={8}
               value={settings.cvText}
               onChange={(e) => saveSettings({ cvText: e.target.value })}
-              placeholder="Colle ici le contenu texte de ton CV…"
+              placeholder="…ou colle ici le contenu texte de ton CV"
             />
           </section>
           <section>
