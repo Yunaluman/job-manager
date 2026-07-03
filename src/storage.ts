@@ -1,29 +1,38 @@
-// Couche de persistance unique. Aujourd'hui : localStorage.
-// Demain (SaaS) : remplacer ces fonctions par des appels API sans toucher à l'UI.
+// Couche de persistance des candidatures — adossée au serveur local SQLite.
+// L'UI ne voit que des hooks synchrones (cache mémoire) ; les écritures
+// partent en tâche de fond via api.ts. Pour le SaaS : ne toucher qu'ici.
 import { useSyncExternalStore } from 'react'
 import type { Application, Status } from './types'
 import { STATUS_LABELS } from './types'
+import { apiGet, apiSend } from './api'
 
-const KEY = 'jobpilot.applications.v1'
+const LEGACY_KEY = 'jobpilot.applications.v1'
 
-let cache: Application[] | null = null
+let cache: Application[] = []
 const listeners = new Set<() => void>()
+const notify = () => listeners.forEach((l) => l())
 
-function load(): Application[] {
-  if (cache) return cache
+// Chargement initial + migration unique depuis l'ancien localStorage
+async function init() {
   try {
-    cache = JSON.parse(localStorage.getItem(KEY) ?? '[]') as Application[]
+    let apps = await apiGet<Application[]>('applications')
+    const legacy = localStorage.getItem(LEGACY_KEY)
+    if (apps.length === 0 && legacy) {
+      const old = JSON.parse(legacy) as Application[]
+      if (old.length > 0) {
+        apiSend('PUT', 'applications', old)
+        apps = old
+      }
+      localStorage.removeItem(LEGACY_KEY)
+    }
+    cache = apps.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    notify()
   } catch {
-    cache = []
+    // serveur pas encore prêt : on réessaie une fois
+    setTimeout(init, 1500)
   }
-  return cache
 }
-
-function persist(apps: Application[]) {
-  cache = apps
-  localStorage.setItem(KEY, JSON.stringify(apps))
-  listeners.forEach((l) => l())
-}
+void init()
 
 export function useApplications(): Application[] {
   return useSyncExternalStore(
@@ -31,7 +40,7 @@ export function useApplications(): Application[] {
       listeners.add(cb)
       return () => listeners.delete(cb)
     },
-    load,
+    () => cache,
   )
 }
 
@@ -46,35 +55,39 @@ export function addApplication(
     createdAt: now,
     updatedAt: now,
   }
-  persist([app, ...load()])
+  cache = [app, ...cache]
+  notify()
+  apiSend('PUT', `applications/${app.id}`, app)
   return app
 }
 
 export function updateApplication(id: string, patch: Partial<Application>) {
   const now = new Date().toISOString()
-  persist(
-    load().map((a) => {
-      if (a.id !== id) return a
-      const next = { ...a, ...patch, updatedAt: now }
-      if (patch.status && patch.status !== a.status) {
-        next.history = [
-          ...a.history,
-          { date: now, event: `Statut → ${STATUS_LABELS[patch.status as Status]}` },
-        ]
-      }
-      return next
-    }),
-  )
+  cache = cache.map((a) => {
+    if (a.id !== id) return a
+    const next = { ...a, ...patch, updatedAt: now }
+    if (patch.status && patch.status !== a.status) {
+      next.history = [
+        ...a.history,
+        { date: now, event: `Statut → ${STATUS_LABELS[patch.status as Status]}` },
+      ]
+    }
+    apiSend('PUT', `applications/${id}`, next)
+    return next
+  })
+  notify()
 }
 
 export function deleteApplication(id: string) {
-  persist(load().filter((a) => a.id !== id))
+  cache = cache.filter((a) => a.id !== id)
+  notify()
+  apiSend('DELETE', `applications/${id}`)
 }
 
 export async function exportExcel() {
   const { default: writeXlsxFile } = await import('write-excel-file/browser')
   type Row = import('write-excel-file/browser').Row
-  const apps = load()
+  const apps = cache
   const header: Row = [
     'Entreprise', 'Poste', 'Statut', 'Postulée le', 'Relance / prochaine action',
     'Lieu', 'Source', 'Contact', 'Salaire', 'Lien', 'Notes',
@@ -99,13 +112,15 @@ export async function exportExcel() {
 }
 
 export function exportJSON(): string {
-  return JSON.stringify(load(), null, 2)
+  return JSON.stringify(cache, null, 2)
 }
 
 export function importJSON(json: string): number {
   const data = JSON.parse(json)
   if (!Array.isArray(data)) throw new Error('Format invalide')
-  persist(data as Application[])
+  cache = data as Application[]
+  notify()
+  apiSend('PUT', 'applications', data)
   return data.length
 }
 

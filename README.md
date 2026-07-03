@@ -6,7 +6,7 @@ Application locale pour piloter une recherche d'emploi : suivi des candidatures 
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:5173
+pnpm dev        # lance l'API SQLite (127.0.0.1:3001) + le front (http://localhost:5173)
 pnpm build      # type-check + build de production dans dist/
 ```
 
@@ -39,23 +39,24 @@ Le CV collé est mémorisé sur l'appareil pour les analyses suivantes.
 
 ## Où sont mes données ?
 
-Tout est stocké **dans le navigateur** (localStorage), rien ne part sur un serveur :
+Dans une base **SQLite locale** : `%LOCALAPPDATA%\JobPilot\jobpilot.db` (Windows), servie par un petit serveur Node (`server/index.mjs`) qui n'écoute que sur `127.0.0.1` — inaccessible depuis le réseau.
 
-| Clé localStorage | Contenu |
-|---|---|
-| `jobpilot.applications.v1` | Candidatures + historique |
-| `jobpilot.cv-analyses.v1` | Analyses de CV |
-| `jobpilot.settings.v1` | CV texte + clé API Mistral |
-
-Conséquences : les données sont liées à **ce navigateur sur cette machine** (vider les données de navigation les efface — faire des exports JSON réguliers), et la clé API Mistral n'est **jamais incluse dans les exports**, n'est envoyée qu'à `api.mistral.ai` en HTTPS.
+- Les données **survivent au nettoyage du navigateur** et sont indépendantes du navigateur utilisé.
+- Sauvegarde = copier ce fichier `.db` (ou export JSON depuis la sidebar).
+- Au premier lancement, les anciennes données localStorage sont **migrées automatiquement** vers SQLite.
+- La clé API Mistral est stockée dans cette base, n'est **jamais incluse dans les exports**, et n'est envoyée qu'à `api.mistral.ai` en HTTPS.
+- Honnêteté sur le modèle de menace : un fichier local reste lisible par un malware ayant accès au disque — la vraie protection, c'est le chiffrement du disque (BitLocker) et un poste sain.
 
 ## Architecture
 
 ```
+server/
+└── index.mjs             # API Express + SQLite (better-sqlite3), 127.0.0.1:3001
 src/
 ├── main.tsx              # Bootstrap + routes TanStack Router (/, /candidatures, /cv)
 ├── types.ts              # Modèle Application, statuts, libellés/couleurs
-├── storage.ts            # Persistance candidatures (localStorage) + exports Excel/JSON
+├── api.ts                # Client HTTP vers le serveur local (écritures optimistes)
+├── storage.ts            # Persistance candidatures + exports Excel/JSON
 ├── cv.ts                 # Module CV : réglages, analyses, prompt recruteur, appel Mistral
 ├── components/
 │   ├── Layout.tsx        # Sidebar + navigation + boutons export/import
@@ -69,7 +70,7 @@ src/
 
 Stack : Vite · React 19 · TypeScript · TanStack Router · Tailwind CSS v4 · pnpm.
 
-**Principe clé** : toute la persistance passe par `storage.ts` et `cv.ts` (hooks `useApplications`, `useSettings`, `useAnalyses` basés sur `useSyncExternalStore`). L'UI ne touche jamais localStorage directement — pour passer en SaaS, remplacer ces deux fichiers par des appels API suffit.
+**Principe clé** : toute la persistance passe par `storage.ts` et `cv.ts` (hooks `useApplications`, `useSettings`, `useAnalyses` basés sur `useSyncExternalStore`, cache mémoire + écritures optimistes vers l'API). L'UI ne parle jamais au serveur directement — pour passer en SaaS, il suffira de pointer `api.ts` vers un serveur distant avec authentification.
 
 ## Branches git
 
