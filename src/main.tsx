@@ -1,0 +1,48 @@
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import {
+  RouterProvider,
+  createRouter,
+  createRootRoute,
+  createRoute,
+} from '@tanstack/react-router'
+import './index.css'
+import { Layout } from './components/Layout'
+import { Dashboard } from './pages/Dashboard'
+import { Applications } from './pages/Applications'
+import { CvPage } from './pages/CvPage'
+
+const rootRoute = createRootRoute({ component: Layout })
+
+const dashboardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/',
+  component: Dashboard,
+})
+
+const applicationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/candidatures',
+  component: Applications,
+})
+
+const cvRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cv',
+  component: CvPage,
+})
+
+const routeTree = rootRoute.addChildren([dashboardRoute, applicationsRoute, cvRoute])
+const router = createRouter({ routeTree })
+
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <RouterProvider router={router} />
+  </React.StrictMode>,
+)
