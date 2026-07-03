@@ -71,6 +71,13 @@ export function updateApplication(id: string, patch: Partial<Application>) {
         ...a.history,
         { date: now, event: `Statut → ${STATUS_LABELS[patch.status as Status]}` },
       ]
+      // Relance effectuée → on replanifie automatiquement la suivante à J+7
+      if (patch.status === 'relancee' && patch.nextActionAt === undefined) {
+        const inAWeek = new Date()
+        inAWeek.setDate(inAWeek.getDate() + 7)
+        next.nextActionAt = inAWeek.toISOString().slice(0, 10)
+        next.history = [...next.history, { date: now, event: 'Prochaine relance planifiée à J+7' }]
+      }
     }
     apiSend('PUT', `applications/${id}`, next)
     return next
