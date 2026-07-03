@@ -1,12 +1,13 @@
 // Module Amélioration CV — réglages, analyses, prompt recruteur, appel Mistral.
-// SÉCURITÉ : la clé API vit dans sa propre entrée localStorage (jamais dans
-// l'export JSON des candidatures), n'est jamais loggée, et n'est envoyée
-// qu'à https://api.mistral.ai. Pour une future version SaaS, elle devra
-// impérativement être déplacée côté serveur.
+// Persistance : serveur local SQLite (via api.ts), plus rien dans localStorage.
+// SÉCURITÉ : la clé API n'est jamais loggée, jamais incluse dans les exports,
+// et n'est envoyée qu'à https://api.mistral.ai. Pour une future version SaaS,
+// elle devra impérativement être déplacée côté serveur.
 import { useSyncExternalStore } from 'react'
+import { apiGet, apiSend } from './api'
 
-const SETTINGS_KEY = 'jobpilot.settings.v1'
-const ANALYSES_KEY = 'jobpilot.cv-analyses.v1'
+const LEGACY_SETTINGS = 'jobpilot.settings.v1'
+const LEGACY_ANALYSES = 'jobpilot.cv-analyses.v1'
 
 export interface Settings {
   mistralKey: string
@@ -22,8 +23,8 @@ export interface CvAnalysis {
   mode: 'api' | 'manuel'
 }
 
-let settingsCache: Settings | null = null
-let analysesCache: CvAnalysis[] | null = null
+let settingsCache: Settings = { mistralKey: '', cvText: '' }
+let analysesCache: CvAnalysis[] = []
 const listeners = new Set<() => void>()
 const notify = () => listeners.forEach((l) => l())
 const subscribe = (cb: () => void) => {
@@ -33,49 +34,56 @@ const subscribe = (cb: () => void) => {
   }
 }
 
-function loadSettings(): Settings {
-  if (!settingsCache) {
-    try {
-      settingsCache = { mistralKey: '', cvText: '', ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }
-    } catch {
-      settingsCache = { mistralKey: '', cvText: '' }
+// Chargement initial + migration unique depuis l'ancien localStorage
+async function init() {
+  try {
+    const [settings, analyses] = await Promise.all([
+      apiGet<Partial<Settings>>('settings'),
+      apiGet<CvAnalysis[]>('analyses'),
+    ])
+    const legacySettings = localStorage.getItem(LEGACY_SETTINGS)
+    if (!settings.cvText && !settings.mistralKey && legacySettings) {
+      Object.assign(settings, JSON.parse(legacySettings))
+      apiSend('PUT', 'settings', settings)
+      localStorage.removeItem(LEGACY_SETTINGS)
     }
-  }
-  return settingsCache!
-}
-
-function loadAnalyses(): CvAnalysis[] {
-  if (!analysesCache) {
-    try {
-      analysesCache = JSON.parse(localStorage.getItem(ANALYSES_KEY) ?? '[]')
-    } catch {
-      analysesCache = []
+    const legacyAnalyses = localStorage.getItem(LEGACY_ANALYSES)
+    let allAnalyses = analyses
+    if (analyses.length === 0 && legacyAnalyses) {
+      allAnalyses = JSON.parse(legacyAnalyses)
+      if (allAnalyses.length > 0) apiSend('PUT', 'analyses', allAnalyses)
+      localStorage.removeItem(LEGACY_ANALYSES)
     }
+    settingsCache = { mistralKey: '', cvText: '', ...settings }
+    analysesCache = allAnalyses.sort((a, b) => b.date.localeCompare(a.date))
+    notify()
+  } catch {
+    setTimeout(init, 1500)
   }
-  return analysesCache!
 }
+void init()
 
-export const useSettings = () => useSyncExternalStore(subscribe, loadSettings)
-export const useAnalyses = () => useSyncExternalStore(subscribe, loadAnalyses)
+export const useSettings = () => useSyncExternalStore(subscribe, () => settingsCache)
+export const useAnalyses = () => useSyncExternalStore(subscribe, () => analysesCache)
 
 export function saveSettings(patch: Partial<Settings>) {
-  settingsCache = { ...loadSettings(), ...patch }
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsCache))
+  settingsCache = { ...settingsCache, ...patch }
   notify()
+  apiSend('PUT', 'settings', patch)
 }
 
 export function addAnalysis(a: Omit<CvAnalysis, 'id' | 'date'>): CvAnalysis {
   const full: CvAnalysis = { ...a, id: crypto.randomUUID(), date: new Date().toISOString() }
-  analysesCache = [full, ...loadAnalyses()]
-  localStorage.setItem(ANALYSES_KEY, JSON.stringify(analysesCache))
+  analysesCache = [full, ...analysesCache]
   notify()
+  apiSend('PUT', `analyses/${full.id}`, full)
   return full
 }
 
 export function deleteAnalysis(id: string) {
-  analysesCache = loadAnalyses().filter((a) => a.id !== id)
-  localStorage.setItem(ANALYSES_KEY, JSON.stringify(analysesCache))
+  analysesCache = analysesCache.filter((a) => a.id !== id)
   notify()
+  apiSend('DELETE', `analyses/${id}`)
 }
 
 export function extractScore(text: string): number | null {
