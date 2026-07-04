@@ -40,14 +40,13 @@ Deux modes :
 ### Lettre de motivation (`/lettre`)
 Lettre complète prête à envoyer : en-tête avec les coordonnées du profil, date, objet, puis un corps de 280-380 mots appuyé uniquement sur le CV mémorisé (rien d'inventé). Le style imite les vraies lettres de l'utilisateur (ton personnel et sincère, parcours atypique assumé, projection dans l'évolution) plutôt qu'une lettre type robotique. Champ « points à mettre en avant » optionnel. Deux modes (prompt à copier ou génération API), lettres archivées avec bouton « Copier la lettre ».
 
-### Paramètres (`/parametres`)
-- **Profil** : nom, poste recherché, email, téléphone, ville — utilisé pour l'en-tête des lettres.
+### Mon profil (`/profil`)
+- **Identité** : nom, poste recherché, email, téléphone, ville — utilisé pour l'en-tête des lettres.
 - **CV** : dépôt de fichier (PDF/DOCX/TXT) ou texte collé, partagé par les modules CV et Lettre.
-- **Fournisseur IA** : dropdown Mistral / Z.ai, modèle éditable, une clé par fournisseur (le dropdown fait suivre la bonne clé).
 
-### Exports (barre latérale)
-- **Excel (.xlsx)** : onglet « Candidatures », dates Excel réelles, pour consulter/partager.
-- **JSON** : sauvegarde complète (avec historique), ré-importable via « Importer ».
+### Paramètres (`/parametres`)
+- **Fournisseur IA** : dropdown Mistral / Z.ai, modèle éditable, une clé par fournisseur (le dropdown fait suivre la bonne clé).
+- **Mes données** : export Excel (.xlsx, dates réelles, pour consulter/partager), export JSON (sauvegarde complète ré-importable), import JSON.
 
 ## Où sont mes données ?
 

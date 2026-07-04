@@ -14,6 +14,7 @@ import { ApplicationDetail } from './pages/ApplicationDetail'
 import { CvPage } from './pages/CvPage'
 import { LetterPage } from './pages/LetterPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -53,6 +54,12 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 })
 
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/profil',
+  component: ProfilePage,
+})
+
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   applicationsRoute,
@@ -60,6 +67,7 @@ const routeTree = rootRoute.addChildren([
   cvRoute,
   letterRoute,
   settingsRoute,
+  profileRoute,
 ])
 const router = createRouter({ routeTree })
 
