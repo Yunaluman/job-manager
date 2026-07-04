@@ -10,7 +10,9 @@ const LEGACY_SETTINGS = 'jobpilot.settings.v1'
 const LEGACY_ANALYSES = 'jobpilot.cv-analyses.v1'
 
 export interface Settings {
-  apiKey: string
+  // Une clé par fournisseur (id du preset, ou 'custom') : changer de
+  // fournisseur dans le dropdown fait suivre la bonne clé automatiquement.
+  keys: Record<string, string>
   baseUrl: string
   model: string
   cvText: string
@@ -46,10 +48,19 @@ export interface CvAnalysis {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  apiKey: '',
+  keys: {},
   baseUrl: PROVIDER_PRESETS[0].baseUrl,
   model: PROVIDER_PRESETS[0].model,
   cvText: '',
+}
+
+export function providerId(s: Settings): string {
+  return PROVIDER_PRESETS.find((p) => p.baseUrl === s.baseUrl)?.id ?? 'custom'
+}
+
+// Clé active = celle du fournisseur sélectionné
+export function activeKey(s: Settings): string {
+  return s.keys?.[providerId(s)] ?? ''
 }
 let settingsCache: Settings = DEFAULT_SETTINGS
 let analysesCache: CvAnalysis[] = []
@@ -70,16 +81,18 @@ async function init() {
       apiGet<CvAnalysis[]>('analyses'),
     ])
     const legacySettings = localStorage.getItem(LEGACY_SETTINGS)
-    if (!settings.cvText && !settings.apiKey && legacySettings) {
+    if (!settings.cvText && legacySettings) {
       Object.assign(settings, JSON.parse(legacySettings))
       apiSend('PUT', 'settings', settings)
       localStorage.removeItem(LEGACY_SETTINGS)
     }
-    // Migration de l'ancien réglage mono-fournisseur (mistralKey) vers le format générique
-    const old = settings as Partial<Settings> & { mistralKey?: string }
-    if (old.mistralKey && !settings.apiKey) {
-      settings.apiKey = old.mistralKey
-      apiSend('PUT', 'settings', { apiKey: old.mistralKey, mistralKey: '' })
+    // Migration des anciens réglages mono-clé (mistralKey puis apiKey) vers keys par fournisseur
+    const old = settings as Partial<Settings> & { mistralKey?: string; apiKey?: string }
+    const legacyKey = old.apiKey || old.mistralKey
+    if (legacyKey && !settings.keys) {
+      const id = PROVIDER_PRESETS.find((p) => p.baseUrl === old.baseUrl)?.id ?? PROVIDER_PRESETS[0].id
+      settings.keys = { [id]: legacyKey }
+      apiSend('PUT', 'settings', { keys: settings.keys, apiKey: '', mistralKey: '' })
     }
     const legacyAnalyses = localStorage.getItem(LEGACY_ANALYSES)
     let allAnalyses = analyses
@@ -186,7 +199,7 @@ export async function callApi(prompt: string, s: Settings): Promise<string> {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${s.apiKey}`,
+      Authorization: `Bearer ${activeKey(s)}`,
     },
     body: JSON.stringify({
       model: s.model,
