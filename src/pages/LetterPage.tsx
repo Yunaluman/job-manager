@@ -10,6 +10,7 @@ import {
   callApi,
   activeKey,
 } from '../cv'
+import { ProviderPicker } from '../components/ProviderPicker'
 
 const areaClass =
   'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
@@ -131,9 +132,7 @@ export function LetterPage() {
             )}
           </div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
-          <p className="text-[11px] text-slate-500">
-            La clé API et le fournisseur se règlent sur la page Amélioration CV.
-          </p>
+          <ProviderPicker />
         </div>
 
         <div className="flex flex-col gap-4">
