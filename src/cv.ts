@@ -65,6 +65,14 @@ const DEFAULT_SETTINGS: Settings = {
   profileTitle: '',
 }
 
+// Économie de tokens : plafonds sur ce qu'on envoie (≈ 4 caractères / token).
+// Un CV tient largement en 9000 caractères ; au-delà c'est du bruit d'extraction.
+const MAX_CV_CHARS = 9000
+const MAX_OFFER_CHARS = 6000
+export function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}\n[…texte tronqué…]` : text
+}
+
 export function providerId(s: Settings): string {
   return PROVIDER_PRESETS.find((p) => p.baseUrl === s.baseUrl)?.id ?? 'custom'
 }
@@ -183,10 +191,10 @@ en intégrant les mots-clés ATS manquants là où c'est pertinent.
 2-3 phrases : ce CV passerait-il d'abord le filtre ATS, puis ton tri humain ? Pourquoi ?
 
 --- FICHE DE POSTE ---
-${offer}
+${clip(offer, MAX_OFFER_CHARS)}
 
 --- CV DU CANDIDAT ---
-${cv}`
+${clip(cv, MAX_CV_CHARS)}`
 }
 
 export function buildLetterPrompt(s: Settings, offer: string, points: string): string {
@@ -213,13 +221,13 @@ ${contact ? `- En-tête avec les coordonnées :\n${contact}\n- Ligne « À l'att
 ${points.trim() ? `- Mets particulièrement en avant : ${points.trim()}` : ''}
 
 --- FICHE DE POSTE ---
-${offer}
+${clip(offer, MAX_OFFER_CHARS)}
 
 --- CV DU CANDIDAT ---
-${s.cvText}`
+${clip(s.cvText, MAX_CV_CHARS)}`
 }
 
-export async function callApi(prompt: string, s: Settings): Promise<string> {
+export async function callApi(prompt: string, s: Settings, maxTokens = 1600): Promise<string> {
   const res = await fetch(`${s.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -230,6 +238,8 @@ export async function callApi(prompt: string, s: Settings): Promise<string> {
       model: s.model,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
+      // Plafonne la réponse : évite qu'un modèle bavard brûle le quota
+      max_tokens: maxTokens,
     }),
   })
   if (!res.ok) {
