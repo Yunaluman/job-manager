@@ -63,6 +63,8 @@ export async function parseOfferWithApi(text: string, s: Settings): Promise<Pars
     body: JSON.stringify({
       model: s.model,
       temperature: 0,
+      // Un petit JSON de 5 champs : inutile d'autoriser plus
+      max_tokens: 300,
       messages: [
         {
           role: 'user',

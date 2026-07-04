@@ -47,7 +47,8 @@ export function LetterPage() {
     setLoading(true)
     setError('')
     try {
-      save(await callApi(buildLetterPrompt(settings, offer, points), settings), 'api')
+      // ~380 mots max pour le corps : 1100 tokens suffisent largement
+      save(await callApi(buildLetterPrompt(settings, offer, points), settings, 1100), 'api')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue.')
     } finally {
