@@ -44,6 +44,7 @@ export function ApplicationForm({ initial, defaults, onClose }: Props) {
     contact: initial?.contact ?? '',
     salary: initial?.salary ?? defaults?.salary ?? '',
     status: initial?.status ?? defaults?.status ?? ('postulee' as Status),
+    jobText: initial?.jobText ?? defaults?.jobText ?? '',
     appliedAt: initial?.appliedAt?.slice(0, 10) ?? today,
     nextActionAt: initial?.nextActionAt?.slice(0, 10) ?? addDays(today, RELANCE_DAYS),
     notes: initial?.notes ?? '',
@@ -130,6 +131,11 @@ export function ApplicationForm({ initial, defaults, onClose }: Props) {
           <div className="col-span-2">
             <Field label="Contact (recruteur, email…)">
               <input className={inputClass} value={form.contact} onChange={set('contact')} />
+            </Field>
+          </div>
+          <div className="col-span-2">
+            <Field label="Texte de l'offre (réutilisé par l'analyse CV et la lettre)">
+              <textarea className={inputClass} rows={3} value={form.jobText} onChange={set('jobText')} />
             </Field>
           </div>
           <div className="col-span-2">

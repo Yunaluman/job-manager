@@ -48,6 +48,7 @@ export interface Application {
   contact?: string
   salary?: string
   status: Status
+  jobText?: string // texte de l'offre — réutilisé par l'analyse CV et la lettre
   appliedAt?: string // ISO date
   nextActionAt?: string // ISO date — date de relance / prochaine action
   notes?: string
