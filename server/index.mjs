@@ -72,6 +72,18 @@ app.put('/api/settings', (req, res) => {
 })
 
 const PORT = 3001
-app.listen(PORT, '127.0.0.1', () => {
+const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`[jobpilot] API SQLite sur http://127.0.0.1:${PORT} — base : ${dbPath}`)
+})
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `[jobpilot] ERREUR : le port ${PORT} est déjà utilisé — une autre instance tourne probablement.\n` +
+        `[jobpilot] Pour la trouver et l'arrêter (PowerShell) :\n` +
+        `[jobpilot]   Get-NetTCPConnection -LocalPort ${PORT} -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`,
+    )
+  } else {
+    console.error('[jobpilot] Erreur serveur :', err)
+  }
+  process.exit(1)
 })
