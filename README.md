@@ -81,6 +81,14 @@ Stack : Vite · React 19 · TypeScript · TanStack Router · Tailwind CSS v4 · 
 
 **Principe clé** : toute la persistance passe par `storage.ts` et `cv.ts` (hooks `useApplications`, `useSettings`, `useAnalyses` basés sur `useSyncExternalStore`, cache mémoire + écritures optimistes vers l'API). L'UI ne parle jamais au serveur directement — pour passer en SaaS, il suffira de pointer `api.ts` vers un serveur distant avec authentification.
 
+## Dépannage
+
+**`pnpm dev` échoue / s'arrête tout seul** : dans 99% des cas, une instance précédente tourne encore et occupe le port 3001 ou 5173 (sous Windows, fermer le terminal ne tue pas toujours les processus enfants). Le serveur affiche maintenant un message clair avec la commande de nettoyage :
+
+```powershell
+Get-NetTCPConnection -LocalPort 3001,5173 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }
+```
+
 ## Branches git
 
 - `main` : version stable.
