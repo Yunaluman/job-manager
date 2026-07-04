@@ -12,6 +12,8 @@ import {
   Zap,
   Loader2,
   X,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 import type { Application, Status } from '../types'
 import { STATUSES, STATUS_LABELS } from '../types'
@@ -206,6 +208,18 @@ function QuickAdd({
   )
 }
 
+type SortKey = 'company' | 'title' | 'status' | 'appliedAt' | 'nextActionAt' | 'source'
+
+// L'ordre des statuts suit la progression du pipeline, pas l'alphabet
+const STATUS_ORDER: Record<Status, number> = {
+  a_postuler: 0,
+  postulee: 1,
+  relancee: 2,
+  entretien: 3,
+  offre: 4,
+  refusee: 5,
+}
+
 function TableView({
   apps,
   onEdit,
@@ -216,6 +230,44 @@ function TableView({
   onDelete: (a: Application) => void
 }) {
   const navigate = useNavigate()
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortAsc, setSortAsc] = useState(true)
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      if (sortAsc) setSortAsc(false)
+      else setSortKey(null) // 3e clic : retour à l'ordre par défaut
+    } else {
+      setSortKey(key)
+      setSortAsc(true)
+    }
+  }
+
+  const sorted = sortKey
+    ? [...apps].sort((a, b) => {
+        const cmp =
+          sortKey === 'status'
+            ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
+            : (a[sortKey] ?? '').localeCompare(b[sortKey] ?? '', 'fr')
+        return sortAsc ? cmp : -cmp
+      })
+    : apps
+
+  function Th({ label, k }: { label: string; k: SortKey }) {
+    return (
+      <th className="px-4 py-3">
+        <button
+          onClick={() => toggleSort(k)}
+          className="flex items-center gap-1 uppercase tracking-wide hover:text-slate-300"
+        >
+          {label}
+          {sortKey === k &&
+            (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+        </button>
+      </th>
+    )
+  }
+
   if (apps.length === 0)
     return (
       <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">
@@ -226,18 +278,18 @@ function TableView({
     <div className="overflow-x-auto rounded-2xl border border-slate-800">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-800 bg-slate-900/80 text-left text-xs uppercase tracking-wide text-slate-500">
-            <th className="px-4 py-3">Entreprise</th>
-            <th className="px-4 py-3">Poste</th>
-            <th className="px-4 py-3">Statut</th>
-            <th className="px-4 py-3">Postulée le</th>
-            <th className="px-4 py-3">Relance</th>
-            <th className="px-4 py-3">Source</th>
+          <tr className="border-b border-slate-800 bg-slate-900/80 text-left text-xs text-slate-500">
+            <Th label="Entreprise" k="company" />
+            <Th label="Poste" k="title" />
+            <Th label="Statut" k="status" />
+            <Th label="Postulée le" k="appliedAt" />
+            <Th label="Relance" k="nextActionAt" />
+            <Th label="Source" k="source" />
             <th className="px-4 py-3" />
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/70">
-          {apps.map((a) => (
+          {sorted.map((a) => (
             <tr
               key={a.id}
               onClick={() => void navigate({ to: '/candidatures/$id', params: { id: a.id } })}
