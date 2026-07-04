@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Download, Upload, FileSpreadsheet, Mail } from 'lucide-react'
+import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Download, Upload, FileSpreadsheet, Mail, Settings } from 'lucide-react'
 import { exportExcel, exportJSON, importJSON } from '../storage'
 
 function downloadExport() {
@@ -59,6 +59,9 @@ export function Layout() {
           </Link>
         </nav>
         <div className="mt-auto flex flex-col gap-1 border-t border-slate-800 pt-3">
+          <Link to="/parametres" className={linkClass}>
+            <Settings size={16} /> Paramètres
+          </Link>
           <button onClick={() => exportExcel()} className={linkClass}>
             <FileSpreadsheet size={16} /> Exporter (Excel)
           </button>

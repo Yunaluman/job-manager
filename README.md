@@ -38,7 +38,12 @@ Deux modes :
 2. **API directe** : fournisseur configurable (presets Mistral et Z.ai/GLM, ou toute API au format OpenAI via URL personnalisée) → analyse en un clic.
 
 ### Lettre de motivation (`/lettre`)
-Lettre ciblée sur l'offre, appuyée uniquement sur le CV mémorisé (rien d'inventé), 250-350 mots sans formules creuses. Champ « points à mettre en avant » optionnel. Mêmes deux modes que le module CV (prompt à copier ou génération API), lettres archivées avec bouton « Copier la lettre ».
+Lettre complète prête à envoyer : en-tête avec les coordonnées du profil, date, objet, puis un corps de 280-380 mots appuyé uniquement sur le CV mémorisé (rien d'inventé). Le style imite les vraies lettres de l'utilisateur (ton personnel et sincère, parcours atypique assumé, projection dans l'évolution) plutôt qu'une lettre type robotique. Champ « points à mettre en avant » optionnel. Deux modes (prompt à copier ou génération API), lettres archivées avec bouton « Copier la lettre ».
+
+### Paramètres (`/parametres`)
+- **Profil** : nom, poste recherché, email, téléphone, ville — utilisé pour l'en-tête des lettres.
+- **CV** : dépôt de fichier (PDF/DOCX/TXT) ou texte collé, partagé par les modules CV et Lettre.
+- **Fournisseur IA** : dropdown Mistral / Z.ai, modèle éditable, une clé par fournisseur (le dropdown fait suivre la bonne clé).
 
 ### Exports (barre latérale)
 - **Excel (.xlsx)** : onglet « Candidatures », dates Excel réelles, pour consulter/partager.
