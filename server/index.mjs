@@ -77,13 +77,17 @@ const server = app.listen(PORT, '127.0.0.1', () => {
 })
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(
-      `[jobpilot] ERREUR : le port ${PORT} est déjà utilisé — une autre instance tourne probablement.\n` +
-        `[jobpilot] Pour la trouver et l'arrêter (PowerShell) :\n` +
-        `[jobpilot]   Get-NetTCPConnection -LocalPort ${PORT} -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }`,
+    // Une API tourne déjà (autre pnpm dev, preview…) : on la réutilise au lieu
+    // de tout faire tomber — le front passera par elle via le proxy Vite.
+    // Si elle est zombie/obsolète, la libérer avec :
+    //   Get-NetTCPConnection -LocalPort 3001 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }
+    console.warn(
+      `[jobpilot] Le port ${PORT} est déjà utilisé — réutilisation de l'API existante. ` +
+        `Si elle est obsolète, libère le port (voir README, section Dépannage) puis relance.`,
     )
+    setInterval(() => {}, 1 << 30) // reste en vie pour ne pas entraîner vite dans sa chute (concurrently -k)
   } else {
     console.error('[jobpilot] Erreur serveur :', err)
+    process.exit(1)
   }
-  process.exit(1)
 })
