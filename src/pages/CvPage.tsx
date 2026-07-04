@@ -21,6 +21,8 @@ import {
   analyzeWithApi,
   extractScore,
   PROVIDER_PRESETS,
+  activeKey,
+  providerId,
 } from '../cv'
 
 const areaClass =
@@ -47,6 +49,8 @@ export function CvPage() {
   const [selected, setSelected] = useState<string | null>(null)
 
   const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
+  const key = activeKey(settings)
+  const provider = providerId(settings)
   const jobTitle = offer.trim().split('\n')[0].slice(0, 80) || 'Sans titre'
 
   async function copyPrompt() {
@@ -176,7 +180,7 @@ export function CvPage() {
             >
               <ClipboardPaste size={15} /> Coller le résultat
             </button>
-            {settings.apiKey && (
+            {key && (
               <button
                 onClick={runApi}
                 disabled={!ready || loading}
@@ -218,16 +222,19 @@ export function CvPage() {
                 placeholder="Modèle (ex: glm-4.5-flash)"
               />
             </div>
-            {settings.apiKey ? (
+            {key ? (
               <div className="flex items-center justify-between gap-3">
                 <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                  <ShieldCheck size={13} /> Clé enregistrée (•••{settings.apiKey.slice(-4)})
+                  <ShieldCheck size={13} /> Clé {provider} enregistrée (•••{key.slice(-4)})
                 </span>
                 <button
-                  onClick={() => saveSettings({ apiKey: '' })}
+                  onClick={() => {
+                    const { [provider]: _removed, ...rest } = settings.keys
+                    saveSettings({ keys: rest })
+                  }}
                   className="text-xs text-rose-400 hover:underline"
                 >
-                  Effacer la clé
+                  Effacer cette clé
                 </button>
               </div>
             ) : (
@@ -246,7 +253,7 @@ export function CvPage() {
                 <button
                   onClick={() => {
                     if (keyInput.trim()) {
-                      saveSettings({ apiKey: keyInput.trim() })
+                      saveSettings({ keys: { ...settings.keys, [provider]: keyInput.trim() } })
                       setKeyInput('')
                     }
                   }}

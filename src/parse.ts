@@ -1,7 +1,7 @@
 // Ajout express : extraction des champs d'une offre d'emploi collée.
 // Deux stratégies : IA (fournisseur configuré dans le module CV) avec repli
 // automatique sur une heuristique locale si pas de clé ou en cas d'erreur.
-import type { Settings } from './cv'
+import { activeKey, type Settings } from './cv'
 
 export interface ParsedOffer {
   company?: string
@@ -59,7 +59,7 @@ export function parseOfferHeuristic(text: string): ParsedOffer {
 export async function parseOfferWithApi(text: string, s: Settings): Promise<ParsedOffer> {
   const res = await fetch(`${s.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.apiKey}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${activeKey(s)}` },
     body: JSON.stringify({
       model: s.model,
       temperature: 0,
@@ -93,7 +93,7 @@ ${text.slice(0, 6000)}`,
 // Point d'entrée : IA si clé configurée, repli heuristique sinon / en cas d'échec
 export async function parseOffer(text: string, url: string, settings: Settings): Promise<ParsedOffer> {
   let parsed: ParsedOffer
-  if (settings.apiKey) {
+  if (activeKey(settings)) {
     try {
       parsed = await parseOfferWithApi(text, settings)
     } catch {

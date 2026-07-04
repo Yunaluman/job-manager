@@ -8,6 +8,7 @@ import {
   deleteAnalysis,
   buildLetterPrompt,
   callApi,
+  activeKey,
 } from '../cv'
 
 const areaClass =
@@ -118,7 +119,7 @@ export function LetterPage() {
             >
               <ClipboardPaste size={15} /> Coller la lettre
             </button>
-            {settings.apiKey && (
+            {activeKey(settings) && (
               <button
                 onClick={generate}
                 disabled={!ready || loading}
