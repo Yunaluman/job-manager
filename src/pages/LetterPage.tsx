@@ -33,7 +33,7 @@ export function LetterPage() {
   const current = letters.find((a) => a.id === selected)
 
   async function copyPrompt() {
-    await navigator.clipboard.writeText(buildLetterPrompt(settings.cvText, offer, points))
+    await navigator.clipboard.writeText(buildLetterPrompt(settings, offer, points))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -47,7 +47,7 @@ export function LetterPage() {
     setLoading(true)
     setError('')
     try {
-      save(await callApi(buildLetterPrompt(settings.cvText, offer, points), settings), 'api')
+      save(await callApi(buildLetterPrompt(settings, offer, points), settings), 'api')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue.')
     } finally {
@@ -75,11 +75,11 @@ export function LetterPage() {
         <div className="flex flex-col gap-6">
           {!settings.cvText.trim() && (
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
-              Dépose d'abord ton CV sur la page{' '}
-              <Link to="/cv" className="underline">
-                Amélioration CV
+              Dépose d'abord ton CV dans les{' '}
+              <Link to="/parametres" className="underline">
+                Paramètres
               </Link>{' '}
-              — il sera utilisé comme matière pour la lettre.
+              — il sera utilisé comme matière pour la lettre, avec ton profil pour l'en-tête.
             </p>
           )}
           <section>

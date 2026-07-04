@@ -16,6 +16,12 @@ export interface Settings {
   baseUrl: string
   model: string
   cvText: string
+  // Profil — utilisé pour l'en-tête des lettres de motivation
+  profileName: string
+  profileEmail: string
+  profilePhone: string
+  profileCity: string
+  profileTitle: string // poste recherché, ex "Développeur backend / data"
 }
 
 // Les deux fournisseurs exposent une API au format OpenAI (chat/completions) :
@@ -52,6 +58,11 @@ const DEFAULT_SETTINGS: Settings = {
   baseUrl: PROVIDER_PRESETS[0].baseUrl,
   model: PROVIDER_PRESETS[0].model,
   cvText: '',
+  profileName: '',
+  profileEmail: '',
+  profilePhone: '',
+  profileCity: '',
+  profileTitle: '',
 }
 
 export function providerId(s: Settings): string {
@@ -178,20 +189,34 @@ ${offer}
 ${cv}`
 }
 
-export function buildLetterPrompt(cv: string, offer: string, points: string): string {
-  return `Tu es un candidat qui écrit une lettre de motivation en français pour l'offre ci-dessous, en t'appuyant uniquement sur les éléments réels du CV fourni (n'invente aucune expérience).
+export function buildLetterPrompt(s: Settings, offer: string, points: string): string {
+  const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const contact = [s.profileName, s.profilePhone && `Tél : ${s.profilePhone}`, s.profileEmail && `Mail : ${s.profileEmail}`, s.profileCity]
+    .filter(Boolean)
+    .join('\n')
 
-Exigences :
-- 250 à 350 mots, ton professionnel mais naturel et direct — bannis les formules creuses (« votre entreprise renommée », « je suis motivé »)
-- Structure : accroche spécifique à l'entreprise/au poste → 2 paragraphes reliant les expériences du CV aux besoins concrets de l'offre (avec les mots-clés de l'offre) → conclusion avec proposition d'échange
-- Prête à envoyer : uniquement le texte de la lettre, sans commentaire autour
+  return `Tu écris une lettre de motivation en français, à la première personne, pour l'offre ci-dessous. Tu t'appuies uniquement sur les éléments réels du CV fourni — n'invente aucune expérience.
+
+STYLE (important — imite ce ton, pas celui d'une lettre type) :
+Le candidat écrit des lettres personnelles et sincères, jamais robotiques. Voici un extrait d'une de ses vraies lettres, à prendre comme référence de ton :
+« Passionné par le développement et les nouvelles technologies, mon parcours est volontairement jonché de curiosité : backend, data, automation… cela reflète ma capacité d'adaptation et mon envie de comprendre les projets dans leur globalité. Aujourd'hui, je m'oriente résolument vers un rôle backend/data, tout en appréciant de rester connecté au front pour garder une vision produit. »
+Caractéristiques à reproduire : enthousiasme sincère et précis (jamais « votre entreprise renommée »), parcours atypique assumé comme une force, envie d'apprendre et de progresser affirmée, projection concrète dans ce que le candidat apportera ET ce que l'entreprise lui permettra de devenir.
+
+STRUCTURE :
+${contact ? `- En-tête avec les coordonnées :\n${contact}\n- Ligne « À l'attention du Responsable de recrutement », puis « Le ${today}${s.profileCity ? ` à ${s.profileCity.replace(/^\d{5}\s*/, '')}` : ''} »\n- Ligne « Objet : Candidature pour le poste de [intitulé exact de l'offre] »` : `- Commence directement par « Objet : Candidature pour le poste de [intitulé exact de l'offre] »`}
+- « Madame, Monsieur, »
+- Accroche : pourquoi CETTE entreprise précisément (reprends des éléments concrets de l'offre : secteur, projets, envergure)
+- 2 paragraphes reliant les expériences réelles du CV aux besoins de l'offre, avec ses mots-clés
+- Un paragraphe projection : ce que le candidat veut apprendre/devenir dans ce poste
+- Conclusion courte avec proposition d'échange, « Cordialement, » et le nom
+- 280 à 380 mots pour le corps, prête à envoyer, uniquement la lettre sans commentaire autour
 ${points.trim() ? `- Mets particulièrement en avant : ${points.trim()}` : ''}
 
 --- FICHE DE POSTE ---
 ${offer}
 
 --- CV DU CANDIDAT ---
-${cv}`
+${s.cvText}`
 }
 
 export async function callApi(prompt: string, s: Settings): Promise<string> {

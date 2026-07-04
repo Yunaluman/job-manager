@@ -3,11 +3,9 @@ import {
   Sparkles,
   Copy,
   Check,
-  KeyRound,
   Trash2,
   Loader2,
   ClipboardPaste,
-  ShieldCheck,
   FileUp,
 } from 'lucide-react'
 import { extractTextFromFile } from '../extract'
@@ -20,10 +18,9 @@ import {
   buildPrompt,
   analyzeWithApi,
   extractScore,
-  PROVIDER_PRESETS,
   activeKey,
-  providerId,
 } from '../cv'
+import { ProviderPicker } from '../components/ProviderPicker'
 
 const areaClass =
   'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
@@ -38,7 +35,6 @@ export function CvPage() {
   const settings = useSettings()
   const analyses = useAnalyses().filter((a) => a.kind !== 'lettre')
   const [offer, setOffer] = useState('')
-  const [keyInput, setKeyInput] = useState('')
   const [copied, setCopied] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [pasteText, setPasteText] = useState('')
@@ -50,7 +46,6 @@ export function CvPage() {
 
   const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
   const key = activeKey(settings)
-  const provider = providerId(settings)
   const jobTitle = offer.trim().split('\n')[0].slice(0, 80) || 'Sans titre'
 
   async function copyPrompt() {
@@ -193,82 +188,7 @@ export function CvPage() {
           </div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
 
-          <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <KeyRound size={15} className="text-slate-400" /> Fournisseur IA (optionnel)
-            </div>
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <select
-                className={areaClass}
-                value={PROVIDER_PRESETS.find((p) => p.baseUrl === settings.baseUrl)?.id ?? 'custom'}
-                onChange={(e) => {
-                  const preset = PROVIDER_PRESETS.find((p) => p.id === e.target.value)
-                  if (preset) saveSettings({ baseUrl: preset.baseUrl, model: preset.model })
-                }}
-              >
-                {PROVIDER_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-                <option value="custom" disabled>
-                  Autre (URL personnalisée)
-                </option>
-              </select>
-              <input
-                className={areaClass}
-                value={settings.model}
-                onChange={(e) => saveSettings({ model: e.target.value })}
-                placeholder="Modèle (ex: glm-4.5-flash)"
-              />
-            </div>
-            {key ? (
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                  <ShieldCheck size={13} /> Clé {provider} enregistrée (•••{key.slice(-4)})
-                </span>
-                <button
-                  onClick={() => {
-                    const { [provider]: _removed, ...rest } = settings.keys
-                    saveSettings({ keys: rest })
-                  }}
-                  className="text-xs text-rose-400 hover:underline"
-                >
-                  Effacer cette clé
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  autoComplete="off"
-                  className={areaClass}
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder={
-                    PROVIDER_PRESETS.find((p) => p.baseUrl === settings.baseUrl)?.keyHint ??
-                    'Clé API du fournisseur'
-                  }
-                />
-                <button
-                  onClick={() => {
-                    if (keyInput.trim()) {
-                      saveSettings({ keys: { ...settings.keys, [provider]: keyInput.trim() } })
-                      setKeyInput('')
-                    }
-                  }}
-                  className="shrink-0 rounded-lg border border-slate-700 px-3 text-sm hover:border-slate-500"
-                >
-                  Enregistrer
-                </button>
-              </div>
-            )}
-            <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-              Clé stockée uniquement sur cet appareil, envoyée exclusivement au fournisseur choisi
-              ({new URL(settings.baseUrl).host}), jamais incluse dans les exports. Rappel : le CV
-              envoyé contient des données personnelles — Mistral est hébergé en UE (RGPD), Z.ai non.
-            </p>
-          </section>
+          <ProviderPicker withKeys />
         </div>
 
         <div className="flex flex-col gap-4">
