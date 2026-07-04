@@ -34,7 +34,7 @@ function scoreColor(score: number) {
 
 export function CvPage() {
   const settings = useSettings()
-  const analyses = useAnalyses()
+  const analyses = useAnalyses().filter((a) => a.kind !== 'lettre')
   const [offer, setOffer] = useState('')
   const [keyInput, setKeyInput] = useState('')
   const [copied, setCopied] = useState(false)

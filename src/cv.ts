@@ -42,6 +42,7 @@ export interface CvAnalysis {
   result: string
   score: number | null
   mode: 'api' | 'manuel'
+  kind?: 'cv' | 'lettre' // absent = 'cv' (données antérieures)
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -164,7 +165,23 @@ ${offer}
 ${cv}`
 }
 
-export async function analyzeWithApi(cv: string, offer: string, s: Settings): Promise<string> {
+export function buildLetterPrompt(cv: string, offer: string, points: string): string {
+  return `Tu es un candidat qui écrit une lettre de motivation en français pour l'offre ci-dessous, en t'appuyant uniquement sur les éléments réels du CV fourni (n'invente aucune expérience).
+
+Exigences :
+- 250 à 350 mots, ton professionnel mais naturel et direct — bannis les formules creuses (« votre entreprise renommée », « je suis motivé »)
+- Structure : accroche spécifique à l'entreprise/au poste → 2 paragraphes reliant les expériences du CV aux besoins concrets de l'offre (avec les mots-clés de l'offre) → conclusion avec proposition d'échange
+- Prête à envoyer : uniquement le texte de la lettre, sans commentaire autour
+${points.trim() ? `- Mets particulièrement en avant : ${points.trim()}` : ''}
+
+--- FICHE DE POSTE ---
+${offer}
+
+--- CV DU CANDIDAT ---
+${cv}`
+}
+
+export async function callApi(prompt: string, s: Settings): Promise<string> {
   const res = await fetch(`${s.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -173,7 +190,7 @@ export async function analyzeWithApi(cv: string, offer: string, s: Settings): Pr
     },
     body: JSON.stringify({
       model: s.model,
-      messages: [{ role: 'user', content: buildPrompt(cv, offer) }],
+      messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
     }),
   })
@@ -188,3 +205,6 @@ export async function analyzeWithApi(cv: string, offer: string, s: Settings): Pr
   if (typeof content !== 'string') throw new Error('Réponse inattendue de l’API.')
   return content
 }
+
+export const analyzeWithApi = (cv: string, offer: string, s: Settings) =>
+  callApi(buildPrompt(cv, offer), s)

@@ -26,7 +26,7 @@ Prérequis : Node 22+, pnpm 9+.
 - Statuts : À postuler → Postulée → Relancée → Entretien → Offre / Refusée.
 - Chaque changement de statut est enregistré dans l'historique de la candidature.
 - **Fiche détail** (clic sur une ligne) : toutes les infos, changement de statut rapide, et timeline de l'historique.
-- Recherche par entreprise, poste ou lieu.
+- Recherche par entreprise, poste ou lieu ; tri par colonne (3e clic = ordre par défaut).
 
 ### Amélioration CV (`/cv`)
 Un « recruteur senior » (IA) note ton CV sur 100 face à une fiche de poste : points forts/faibles, reformulations prêtes à copier, mots-clés ATS manquants, verdict.
@@ -36,6 +36,9 @@ Le CV se dépose en fichier (PDF/DOCX/TXT, extraction du texte 100% locale) ou s
 Deux modes :
 1. **Sans API (gratuit)** : « Copier le prompt » → coller dans Claude / ChatGPT / Mistral (abonnement chat) → « Coller le résultat » pour l'archiver. La note /100 est extraite automatiquement.
 2. **API directe** : fournisseur configurable (presets Mistral et Z.ai/GLM, ou toute API au format OpenAI via URL personnalisée) → analyse en un clic.
+
+### Lettre de motivation (`/lettre`)
+Lettre ciblée sur l'offre, appuyée uniquement sur le CV mémorisé (rien d'inventé), 250-350 mots sans formules creuses. Champ « points à mettre en avant » optionnel. Mêmes deux modes que le module CV (prompt à copier ou génération API), lettres archivées avec bouton « Copier la lettre ».
 
 ### Exports (barre latérale)
 - **Excel (.xlsx)** : onglet « Candidatures », dates Excel réelles, pour consulter/partager.
@@ -85,6 +88,4 @@ Stack : Vite · React 19 · TypeScript · TanStack Router · Tailwind CSS v4 · 
 
 ## Roadmap
 
-- [ ] Tri des colonnes du tableau
-- [ ] Lettre de motivation IA (même mécanique que le module CV)
 - [ ] Gestion utilisateurs + backend (version SaaS) — **la clé API devra alors passer côté serveur**
