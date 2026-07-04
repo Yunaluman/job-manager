@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearch } from '@tanstack/react-router'
+import { useApplications } from '../storage'
 import {
   Sparkles,
   Copy,
@@ -43,6 +45,14 @@ export function CvPage() {
   const [extracting, setExtracting] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+
+  // Arrivée depuis une fiche candidature (?app=id) : pré-remplit l'offre
+  const { app: appId } = useSearch({ strict: false }) as { app?: string }
+  const linked = useApplications().find((a) => a.id === appId)
+  useEffect(() => {
+    if (linked?.jobText && !offer.trim()) setOffer(linked.jobText)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked])
 
   const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
   const key = activeKey(settings)

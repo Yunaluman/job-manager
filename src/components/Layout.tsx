@@ -7,7 +7,7 @@ const linkClass =
 export function Layout() {
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-800 bg-slate-900/50 p-4">
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-slate-900/50 p-4">
         <div className="mb-8 flex items-center gap-2.5 px-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500 shadow-lg shadow-indigo-500/30">
             <Briefcase size={18} />

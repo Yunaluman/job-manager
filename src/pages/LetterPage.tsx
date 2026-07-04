@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { Link, useSearch } from '@tanstack/react-router'
+import { useApplications } from '../storage'
 import { Mail, Copy, Check, Trash2, Loader2, ClipboardPaste, Sparkles } from 'lucide-react'
 import {
   useSettings,
@@ -27,6 +28,14 @@ export function LetterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
+
+  // Arrivée depuis une fiche candidature (?app=id) : pré-remplit l'offre
+  const { app: appId } = useSearch({ strict: false }) as { app?: string }
+  const linked = useApplications().find((a) => a.id === appId)
+  useEffect(() => {
+    if (linked?.jobText && !offer.trim()) setOffer(linked.jobText)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linked])
 
   const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
   const jobTitle = offer.trim().split('\n')[0].slice(0, 80) || 'Sans titre'

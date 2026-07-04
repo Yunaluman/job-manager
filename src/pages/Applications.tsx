@@ -151,7 +151,7 @@ function QuickAdd({
     setLoading(true)
     const parsed = await parseOffer(text, url, settings)
     setLoading(false)
-    onParsed({ ...parsed, status: 'a_postuler' })
+    onParsed({ ...parsed, jobText: text, status: 'a_postuler' })
   }
 
   const inputClass =

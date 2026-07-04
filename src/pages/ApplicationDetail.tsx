@@ -12,6 +12,9 @@ import {
   CalendarDays,
   AlarmClock,
   History,
+  Sparkles,
+  Mail,
+  ChevronRight,
 } from 'lucide-react'
 import { useApplications, updateApplication, deleteApplication, isDue } from '../storage'
 import type { Status } from '../types'
@@ -105,6 +108,36 @@ export function ApplicationDetail() {
             <Trash2 size={15} />
           </button>
         </div>
+      </div>
+
+      {/* Parcours candidature : offre → analyse CV → lettre → candidature */}
+      <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-sm">
+        <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Parcours
+        </span>
+        <Link
+          to="/cv"
+          search={{ app: app.id }}
+          className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 hover:border-indigo-500/60 hover:text-indigo-300"
+        >
+          <Sparkles size={14} /> Analyser mon CV face à l'offre
+        </Link>
+        <ChevronRight size={14} className="text-slate-600" />
+        <Link
+          to="/lettre"
+          search={{ app: app.id }}
+          className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 hover:border-indigo-500/60 hover:text-indigo-300"
+        >
+          <Mail size={14} /> Rédiger la lettre
+        </Link>
+        <ChevronRight size={14} className="text-slate-600" />
+        <span className="text-slate-400">Postuler puis passer le statut à « Postulée »</span>
+        {!app.jobText && (
+          <span className="w-full pt-1 text-xs text-amber-400/90">
+            Astuce : colle le texte de l'offre (bouton crayon) pour pré-remplir l'analyse et la
+            lettre.
+          </span>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
