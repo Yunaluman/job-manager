@@ -75,9 +75,9 @@ export function LetterPage() {
         <div className="flex flex-col gap-6">
           {!settings.cvText.trim() && (
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
-              Dépose d'abord ton CV dans les{' '}
-              <Link to="/parametres" className="underline">
-                Paramètres
+              Dépose d'abord ton CV dans{' '}
+              <Link to="/profil" className="underline">
+                Mon profil
               </Link>{' '}
               — il sera utilisé comme matière pour la lettre, avec ton profil pour l'en-tête.
             </p>

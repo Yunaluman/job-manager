@@ -1,32 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Download, Upload, FileSpreadsheet, Mail, Settings } from 'lucide-react'
-import { exportExcel, exportJSON, importJSON } from '../storage'
-
-function downloadExport() {
-  const blob = new Blob([exportJSON()], { type: 'application/json' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `jobpilot-export-${new Date().toISOString().slice(0, 10)}.json`
-  a.click()
-  URL.revokeObjectURL(a.href)
-}
-
-function triggerImport() {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'application/json'
-  input.onchange = async () => {
-    const file = input.files?.[0]
-    if (!file) return
-    try {
-      const n = importJSON(await file.text())
-      alert(`${n} candidature(s) importée(s).`)
-    } catch {
-      alert("Fichier invalide — l'import a échoué.")
-    }
-  }
-  input.click()
-}
+import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Mail, Settings, User } from 'lucide-react'
 
 const linkClass =
   'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-100 transition-colors [&.active]:bg-indigo-500/15 [&.active]:text-indigo-300'
@@ -59,18 +32,12 @@ export function Layout() {
           </Link>
         </nav>
         <div className="mt-auto flex flex-col gap-1 border-t border-slate-800 pt-3">
+          <Link to="/profil" className={linkClass}>
+            <User size={16} /> Mon profil
+          </Link>
           <Link to="/parametres" className={linkClass}>
             <Settings size={16} /> Paramètres
           </Link>
-          <button onClick={() => exportExcel()} className={linkClass}>
-            <FileSpreadsheet size={16} /> Exporter (Excel)
-          </button>
-          <button onClick={downloadExport} className={linkClass}>
-            <Download size={16} /> Exporter (JSON)
-          </button>
-          <button onClick={triggerImport} className={linkClass}>
-            <Upload size={16} /> Importer
-          </button>
         </div>
       </aside>
       <main className="flex-1 overflow-x-hidden p-8">
