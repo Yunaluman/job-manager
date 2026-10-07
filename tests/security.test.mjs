@@ -151,6 +151,10 @@ test('host, origin, fetch metadata, token and content type reject hostile reques
   assert.equal((await call('/api/settings', { headers: { 'X-JobPilot-Session': 'x'.repeat(64) } })).status, 401)
   assert.equal((await call('/api/settings', { method: 'PUT', raw: '{}', headers: { 'Content-Type': 'text/plain' } })).status, 415)
   assert.equal((await call('/api/settings', { method: 'PUT', raw: '{', headers: { 'Content-Type': 'application/json' } })).status, 400)
+  const bootstrap = await call('/local-session', { authenticated: false })
+  assert.match(JSON.parse(bootstrap.text).token, /^[0-9a-f]{64}$/)
+  assert.equal(bootstrap.headers['cache-control'], 'no-store')
+  assert.equal((await call('/local-session', { authenticated: false, headers: { Origin: 'https://attacker.example' } })).status, 403)
 })
 test('settings reject credential fields and credentials never appear in responses', async (t) => {
   const { call } = await fixture(t)

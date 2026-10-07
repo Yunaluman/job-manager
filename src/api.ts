@@ -33,3 +33,13 @@ export function apiWrite<T>(method: 'PUT' | 'DELETE' | 'POST', path: string, bod
     'X-JobPilot-Operation': crypto.randomUUID(),
   })
 }
+
+export async function refreshSession() {
+  const response = await fetch('/local-session', { redirect: 'error', signal: AbortSignal.timeout(15000) })
+  if (!response.ok) throw new Error('Session locale indisponible.')
+  const session = await response.json()
+  if (typeof session.token !== 'string' || !/^[0-9a-f]{64}$/.test(session.token)) throw new Error('Session locale invalide.')
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="jobpilot-session"]')
+  if (!meta) throw new Error('Page locale invalide.')
+  meta.content = session.token
+}
