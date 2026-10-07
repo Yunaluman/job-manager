@@ -5,7 +5,7 @@ import { useSettings, useSettingsError, saveSettings, saveCredential, PROVIDER_P
 import { DraftGuard } from './DraftGuard'
 
 const inputClass =
-  'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
+  'app-field'
 
 // Sélecteur fournisseur + modèle, partagé entre les pages (réglage global).
 // withKeys : affiche aussi la saisie/suppression de la clé du fournisseur courant.
@@ -33,13 +33,13 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
   }
 
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+    <section className="rounded-xl border border-line bg-surface p-4">
       <DraftGuard dirty={modelDraft !== null || keyInput.length > 0} />
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <KeyRound size={15} className="text-slate-400" /> Fournisseur IA
+        <KeyRound size={15} className="text-muted" /> Fournisseur IA
       </div>
-      {loadingError && <p role="alert" className="mb-3 text-xs text-rose-400">{loadingError} Les anciennes données sont conservées ; recharge après correction.</p>}
-      <div className="grid grid-cols-2 gap-2">
+      {loadingError && <p role="alert" className="mb-3 text-xs text-rose-700 dark:text-rose-400">{loadingError} Les anciennes données sont conservées ; recharge après correction.</p>}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <select
           className={inputClass}
           value={provider}
@@ -80,19 +80,19 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
         catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
         finally { setBusy(false) }
       }}>Enregistrer le modèle</button>}
-      {error && !withKeys && <p role="alert" className="mt-2 text-xs text-rose-400">{error}</p>}
+      {error && !withKeys && <p role="alert" className="mt-2 text-xs text-rose-700 dark:text-rose-400">{error}</p>}
 
       {withKeys ? (
         <div className="mt-3">
           {key ? (
             <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <span className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
                 <ShieldCheck size={13} /> Clé {provider} protégée sur cet appareil
               </span>
               <button
                 disabled={busy}
                 onClick={() => void changeCredential(true)}
-                className="text-xs text-rose-400 hover:underline"
+                className="text-xs text-rose-700 dark:text-rose-400 hover:underline"
               >
                 Effacer cette clé
               </button>
@@ -112,27 +112,27 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
               <button
                 disabled={busy || !keyInput.trim() || provider === 'custom'}
                 onClick={() => void changeCredential()}
-                className="shrink-0 rounded-lg border border-slate-700 px-3 text-sm hover:border-slate-500"
+                className="shrink-0 rounded-lg border border-line px-3 text-sm hover:border-slate-500"
               >
                 {busy ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </div>
           )}
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-2 text-[11px] leading-relaxed text-muted">
             Les clés enregistrées sont chiffrées pour ton compte Windows. Les appels passent par le
             serveur local vers Mistral ou Z.ai ; le navigateur ne récupère pas les clés enregistrées.
             Le CV et le texte de l'offre sont transmis au fournisseur choisi lors d'un appel IA.
           </p>
-          {error && <p role="alert" className="mt-2 text-xs text-rose-400">{error}</p>}
+          {error && <p role="alert" className="mt-2 text-xs text-rose-700 dark:text-rose-400">{error}</p>}
         </div>
       ) : (
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-[11px] text-muted">
           {key ? (
             <>Clé {provider} disponible sur le serveur local.</>
           ) : (
             <>
               Pas de clé pour ce fournisseur —{' '}
-              <Link to="/parametres" className="text-indigo-400 hover:underline">
+              <Link to="/parametres" className="text-indigo-700 dark:text-indigo-400 hover:underline">
                 l'enregistrer dans les Paramètres
               </Link>
               , ou utilise le mode copier-coller.
