@@ -15,6 +15,11 @@ mkdirSync(dataDir, { recursive: true })
 let db
 let vite
 const server = createServer()
+const starting = (_req, res) => {
+  res.writeHead(503, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' })
+  res.end('JobPilot démarre. Réessaie dans quelques instants.')
+}
+server.on('request', starting)
 let closing = false
 async function close(code = 0) {
   if (closing) return
@@ -62,6 +67,7 @@ try {
     })
   }
   app.use((_err, _req, res, _next) => res.status(500).send('Opération locale impossible.'))
+  server.removeListener('request', starting)
   server.on('request', app)
   console.log(`[jobpilot] http://127.0.0.1:${port} — local session ready`)
 } catch {

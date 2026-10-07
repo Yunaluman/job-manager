@@ -50,6 +50,7 @@ export function createCredentialStore(db, protector) {
     for (const row of db.prepare('SELECT encrypted FROM credentials').all()) protector.unprotect(row.encrypted)
     if (!source || Array.isArray(source) || typeof source !== 'object' || (source.keys !== undefined && (!source.keys || Array.isArray(source.keys) || typeof source.keys !== 'object'))) throw new Error('Invalid legacy credentials.')
     const keys = { ...(source.keys ?? {}) }
+    if (Object.keys(keys).length > 16 || Object.keys(keys).some((provider) => !/^[A-Za-z0-9._-]{1,64}$/.test(provider))) throw new Error('Invalid legacy provider list.')
     if (source.apiKey) {
       const provider = providerForUrl(source.baseUrl) ?? (source.baseUrl ? 'custom' : 'mistral')
       if (keys[provider] && keys[provider] !== source.apiKey) throw new Error('Credential migration conflict.')

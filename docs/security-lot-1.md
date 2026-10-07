@@ -15,9 +15,11 @@
 
 `node --test tests/security.test.mjs` covers persisted migration, encryption/readback failure rollback, conflicting browser migration, API authentication, Host/Origin/fetch metadata restrictions, settings-field validation, credential save/delete, fixed AI destinations, redirect policy, error redaction and a real Windows DPAPI round trip. Provider calls are mocked; these tests do not contact a paid provider.
 
-The manual browser check uses an isolated `JOBPILOT_DATA_DIR`, a deliberately invalid fixture key and no provider call. Confirm saved-key presence survives reload, provider switching uses the correct presence flag, and removal updates the UI. TypeScript and production build must also pass.
+The manual browser check used an isolated `JOBPILOT_DATA_DIR`, a deliberately invalid fixture key and no provider call. Saved-key presence survived reload; switching provider used the correct presence flag and removal persisted. Production rendering was checked with no console errors. TypeScript and production build passed on an export of the exact Git index, without the pre-existing edits.
 
 ## Review checklist
+
+The local review traced credential inputs, persisted ciphertext, response fields, migration failure paths and bootstrap boundaries. Corrections included custom-provider quarantine, visible migration errors, integrity gating and recovery, a startup HTTP 503 gate, SQLite companion-file exclusions and a bounded legacy-provider list. The resulting suite has 18 passing tests. GitHub's automatic Copilot review returned a quota-limit message; it did not perform an external code review. No CI workflow currently exists in this repository. Human review remains appropriate before merge.
 
 - Trace every source of provider secrets, every persistence write and every HTTP response.
 - Attempt malformed migration and settings payloads without losing legacy values.

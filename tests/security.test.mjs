@@ -87,6 +87,8 @@ test('custom legacy credentials are quarantined and malformed legacy values surv
     assert.equal(store.get('mistral'), null)
     assert.equal(store.settings().keyStatus.mistral, false)
     assert.throws(() => store.migrate({ keys: { mistral: 42 } }))
+    assert.throws(() => store.migrate({ keys: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`fixture${i}`, 'fixture'])) }))
+    assert.throws(() => store.migrate({ keys: { 'https://unexpected.example': 'fixture' } }))
     assert.equal(store.get('custom'), 'fixture-custom-secret')
   } finally { db.close() }
 })
