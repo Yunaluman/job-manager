@@ -12,6 +12,7 @@ import {
   hasApiKey,
 } from '../cv'
 import { ProviderPicker } from '../components/ProviderPicker'
+import { DraftGuard } from '../components/DraftGuard'
 
 const areaClass =
   'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
@@ -28,6 +29,7 @@ export function LetterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
+
 
   // Arrivée depuis une fiche candidature (?app=id) : pré-remplit l'offre
   const { app: appId } = useSearch({ strict: false }) as { app?: string }
@@ -47,8 +49,8 @@ export function LetterPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  function save(result: string, mode: 'api' | 'manuel') {
-    const a = addAnalysis({ jobTitle, result, score: null, mode, kind: 'lettre' })
+  async function save(result: string, mode: 'api' | 'manuel') {
+    const a = await addAnalysis({ jobTitle, result, score: null, mode, kind: 'lettre' })
     setSelected(a.id)
   }
 
@@ -57,7 +59,12 @@ export function LetterPage() {
     setError('')
     try {
       // ~380 mots max pour le corps : 1100 tokens suffisent largement
-      save(await callApi(buildLetterPrompt(settings, offer, points), settings, 1100), 'api')
+      const result = await callApi(buildLetterPrompt(settings, offer, points), settings, 1100)
+      setPasteText(result)
+      setPasting(true)
+      await save(result, 'api')
+      setPasteText('')
+      setPasting(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue.')
     } finally {
@@ -74,6 +81,7 @@ export function LetterPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
+      <DraftGuard dirty={pasteText.length > 0} />
       <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight">
         <Mail size={22} className="text-indigo-400" /> Lettre de motivation
       </h1>
@@ -171,7 +179,7 @@ export function LetterPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (confirm('Supprimer cette lettre ?')) deleteAnalysis(a.id)
+                        if (confirm('Supprimer cette lettre ?')) void deleteAnalysis(a.id).catch(() => {})
                       }}
                       className="shrink-0 text-slate-600 hover:text-rose-400"
                     >
@@ -226,11 +234,13 @@ export function LetterPage() {
                 Annuler
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (pasteText.trim()) {
-                    save(pasteText, 'manuel')
+                    try {
+                    await save(pasteText, 'manuel')
                     setPasteText('')
                     setPasting(false)
+                    } catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
                   }
                 }}
                 className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400"

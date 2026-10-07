@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import type { Application, Status } from '../types'
 import { STATUSES, STATUS_LABELS } from '../types'
@@ -32,6 +32,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function ApplicationForm({ initial, defaults, onClose }: Props) {
+  const submitting = useRef(false)
   const today = new Date().toISOString().slice(0, 10)
   // La relance est proposée à J+7 tant que l'utilisateur ne l'a pas modifiée à la main
   const [relanceDirty, setRelanceDirty] = useState(Boolean(initial))
@@ -63,8 +64,9 @@ export function ApplicationForm({ initial, defaults, onClose }: Props) {
     }))
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (submitting.current) return
     if (!form.company.trim() || !form.title.trim()) return
     const data = {
       ...form,
@@ -72,9 +74,13 @@ export function ApplicationForm({ initial, defaults, onClose }: Props) {
       appliedAt: form.appliedAt || undefined,
       nextActionAt: form.nextActionAt || undefined,
     }
-    if (initial) updateApplication(initial.id, data)
-    else addApplication(data)
-    onClose()
+    submitting.current = true
+    try {
+      if (initial) await updateApplication(initial.id, data)
+      else await addApplication(data)
+      onClose()
+    } catch (error) { alert(error instanceof Error ? error.message : 'Enregistrement non confirmé. La saisie est conservée.') }
+    finally { submitting.current = false }
   }
 
   return (

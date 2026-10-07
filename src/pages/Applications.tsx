@@ -48,7 +48,7 @@ export function Applications() {
 
   function remove(a: Application) {
     if (confirm(`Supprimer la candidature ${a.company} — ${a.title} ?`)) {
-      deleteApplication(a.id)
+      void deleteApplication(a.id).catch(() => {})
     }
   }
 
@@ -364,7 +364,7 @@ function KanbanView({
   const [overCol, setOverCol] = useState<Status | null>(null)
 
   function drop(status: Status) {
-    if (dragId) updateApplication(dragId, { status })
+    if (dragId) void updateApplication(dragId, { status }).catch(() => {})
     setDragId(null)
     setOverCol(null)
   }

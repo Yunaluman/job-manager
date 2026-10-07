@@ -23,6 +23,7 @@ import {
   hasApiKey,
 } from '../cv'
 import { ProviderPicker } from '../components/ProviderPicker'
+import { DraftGuard } from '../components/DraftGuard'
 
 const areaClass =
   'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
@@ -35,6 +36,7 @@ function scoreColor(score: number) {
 
 export function CvPage() {
   const settings = useSettings()
+  const [cvDraft, setCvDraft] = useState<string | null>(null)
   const analyses = useAnalyses().filter((a) => a.kind !== 'lettre')
   const [offer, setOffer] = useState('')
   const [copied, setCopied] = useState(false)
@@ -45,6 +47,7 @@ export function CvPage() {
   const [extracting, setExtracting] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+
 
   // Arrivée depuis une fiche candidature (?app=id) : pré-remplit l'offre
   const { app: appId } = useSearch({ strict: false }) as { app?: string }
@@ -64,12 +67,14 @@ export function CvPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  function savePasted() {
+  async function savePasted() {
     if (!pasteText.trim()) return
-    const a = addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel' })
+    try {
+    const a = await addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel' })
     setSelected(a.id)
     setPasteText('')
     setPasting(false)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
   }
 
   async function runApi() {
@@ -77,8 +82,12 @@ export function CvPage() {
     setError('')
     try {
       const result = await analyzeWithApi(settings.cvText, offer, settings)
-      const a = addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api' })
+      setPasteText(result)
+      setPasting(true)
+      const a = await addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api' })
       setSelected(a.id)
+      setPasteText('')
+      setPasting(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue.')
     } finally {
@@ -95,7 +104,9 @@ export function CvPage() {
     try {
       const text = await extractTextFromFile(file)
       if (!text) throw new Error('Aucun texte trouvé dans ce fichier (CV scanné en image ?).')
-      saveSettings({ cvText: text })
+      setCvDraft(text)
+      await saveSettings({ cvText: text })
+      setCvDraft((current) => current === text ? null : current)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de lire ce fichier.")
     } finally {
@@ -113,6 +124,7 @@ export function CvPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
+      <DraftGuard dirty={cvDraft !== null || pasteText.length > 0} />
       <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight">
         <Sparkles size={22} className="text-indigo-400" /> Amélioration CV
       </h1>
@@ -153,10 +165,15 @@ export function CvPage() {
             <textarea
               className={areaClass}
               rows={8}
-              value={settings.cvText}
-              onChange={(e) => saveSettings({ cvText: e.target.value })}
+              value={cvDraft ?? settings.cvText}
+              onChange={(e) => setCvDraft(e.target.value)}
               placeholder="…ou colle ici le contenu texte de ton CV"
             />
+            {cvDraft !== null && <button className="mt-2 text-sm underline" onClick={async () => {
+              const submitted = cvDraft
+              try { await saveSettings({ cvText: submitted }); setCvDraft((current) => current === submitted ? null : current); setError('') }
+              catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
+            }}>Enregistrer le CV</button>}
           </section>
           <section>
             <label className="mb-1.5 block text-xs font-medium text-slate-400">Fiche de poste</label>
@@ -235,7 +252,7 @@ export function CvPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          if (confirm('Supprimer cette analyse ?')) deleteAnalysis(a.id)
+                          if (confirm('Supprimer cette analyse ?')) void deleteAnalysis(a.id).catch(() => {})
                         }}
                         className="text-slate-600 hover:text-rose-400"
                       >

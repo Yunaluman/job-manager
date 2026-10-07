@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { useSettings, useSettingsError, saveSettings, saveCredential, PROVIDER_PRESETS, hasApiKey, providerId } from '../cv'
+import { DraftGuard } from './DraftGuard'
 
 const inputClass =
   'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
@@ -12,10 +13,12 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
   const settings = useSettings()
   const loadingError = useSettingsError()
   const [keyInput, setKeyInput] = useState('')
+  const [modelDraft, setModelDraft] = useState<string | null>(null)
   const key = hasApiKey(settings)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const provider = providerId(settings)
+
 
   async function changeCredential(remove = false) {
     if (busy || (!remove && !keyInput.trim())) return
@@ -31,6 +34,7 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
 
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+      <DraftGuard dirty={modelDraft !== null || keyInput.length > 0} />
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <KeyRound size={15} className="text-slate-400" /> Fournisseur IA
       </div>
@@ -44,7 +48,13 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
             setKeyInput('')
             setError('')
             const preset = PROVIDER_PRESETS.find((p) => p.id === e.target.value)
-            if (preset) saveSettings({ baseUrl: preset.baseUrl, model: preset.model })
+            if (preset) {
+              setBusy(true)
+              void saveSettings({ baseUrl: preset.baseUrl, model: preset.model })
+                .then(() => setModelDraft(null))
+                .catch((e) => setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.'))
+                .finally(() => setBusy(false))
+            }
           }}
         >
           {PROVIDER_PRESETS.map((p) => (
@@ -58,11 +68,19 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
         </select>
         <input
           className={inputClass}
-          value={settings.model}
-          onChange={(e) => saveSettings({ model: e.target.value })}
+          disabled={busy}
+          value={modelDraft ?? settings.model}
+          onChange={(e) => setModelDraft(e.target.value)}
           placeholder="Modèle (ex: glm-4.5-flash)"
         />
       </div>
+      {modelDraft !== null && <button disabled={busy} className="mt-2 text-sm underline" onClick={async () => {
+        setBusy(true)
+        try { await saveSettings({ model: modelDraft }); setModelDraft(null); setError('') }
+        catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
+        finally { setBusy(false) }
+      }}>Enregistrer le modèle</button>}
+      {error && !withKeys && <p role="alert" className="mt-2 text-xs text-rose-400">{error}</p>}
 
       {withKeys ? (
         <div className="mt-3">
