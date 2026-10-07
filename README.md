@@ -20,7 +20,7 @@ Open the printed loopback URL. API requests require the current per-process sess
 - Offer extraction with a local heuristic or a provider-assisted request.
 - Local PDF/DOCX/TXT text extraction for CVs.
 - CV review and draft cover letters, using manual copy/paste or an explicit API request.
-- Profile and provider settings, application-only JSON and Excel exports.
+- Profile and provider settings, complete credential-free JSON snapshots and application Excel exports.
 
 AI output needs human review. A generated score is an estimate, not measured compatibility with an employer's ATS. Saving a draft or changing a status does not prove an application was sent.
 
@@ -46,9 +46,9 @@ SQLite secure-delete is enabled for future changes. Migration does not guarantee
 
 ## Backups
 
-JSON and Excel exports contain **applications only**, without saved credentials. They do not back up the CV, profile or analyses. JSON import currently replaces all applications; import reliability is a separate planned lot.
+JSON snapshots include applications, analyses, CV/profile and public provider settings, without saved credentials. Excel exports contain applications only. Legacy JSON-array import replaces applications after confirmation and a verified encrypted backup. Full snapshots restore into a new database with the supplied CLI; see [the persistence and restoration guide](docs/persistence-lot-2.md).
 
-For a full file backup, stop JobPilot cleanly first. An active SQLite WAL database can have recent changes in `.db-wal`; copying only the `.db` file during use may lose data. A full database copy contains personal information and DPAPI-protected credentials, so keep it private. Do not commit it to Git.
+Use “Sauvegarder la base chiffrée” in Settings for a verified online SQLite backup, encrypted with Windows DPAPI and including protected credentials. Copy verified encrypted backups to a separate protected location for disk-loss recovery. Raw copying during use can omit WAL changes. Do not commit databases or backups to Git.
 
 ## Architecture
 

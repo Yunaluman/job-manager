@@ -1,6 +1,9 @@
 import express from 'express'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createCredentialStore, assertDatabaseIntegrity, PUBLIC_FIELDS, PROVIDERS, providerForUrl } from './credentials.mjs'
+import { createWriteCoordinator } from './writes.mjs'
+import { exportSnapshot } from './snapshots.mjs'
+import { createEncryptedBackup } from './backups.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -8,11 +11,21 @@ export function initializeDatabase(db) {
     CREATE TABLE IF NOT EXISTS analyses (id TEXT PRIMARY KEY, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);`)
 }
-export function createApp({ db, protector, port, development = false, fetchProvider = fetch }) {
+export function createApp({ db, protector, port, development = false, fetchProvider = fetch, backupDirectory }) {
   assertDatabaseIntegrity(db)
   initializeDatabase(db)
   const credentials = createCredentialStore(db, protector)
   credentials.migrate()
+  const writes = createWriteCoordinator(db)
+  function confirmWrite(req, res, mutate) {
+    const supplied = req.get('X-JobPilot-Revision')
+    const expectedRevision = supplied && /^(0|[1-9]\d*)$/.test(supplied) ? Number(supplied) : NaN
+    const acknowledgement = writes.commit({
+      operation: req.get('X-JobPilot-Operation'), expectedRevision,
+      method: req.method, path: req.path, body: req.body,
+    }, mutate)
+    res.json(acknowledgement)
+  }
   const token = randomBytes(32).toString('hex')
   const origins = new Set([`http://127.0.0.1:${port}`, `http://localhost:${port}`])
   const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`])
@@ -33,18 +46,43 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     next()
   })
   app.use('/api', express.json({ limit: '10mb' }))
+  app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
+  let backupRunning = false
+  app.post('/api/backups', async (_req, res, next) => {
+    if (!backupDirectory) return res.status(503).json({ error: 'Répertoire de sauvegarde indisponible.' })
+    if (backupRunning) return res.status(409).json({ error: 'Une sauvegarde est déjà en cours.' })
+    backupRunning = true
+    try { res.json(await createEncryptedBackup(db, protector, backupDirectory)) }
+    catch (error) { next(error) }
+    finally { backupRunning = false }
+  })
+  app.get('/api/state', (_req, res) => {
+    const state = db.transaction(() => ({
+      revision: writes.revision(),
+      applications: db.prepare('SELECT data FROM applications').all().map((row) => JSON.parse(row.data)),
+      analyses: db.prepare('SELECT data FROM analyses').all().map((row) => JSON.parse(row.data)),
+      settings: credentials.settings(),
+    }))()
+    res.json(state)
+  })
   for (const table of ['applications', 'analyses']) {
     const upsert = db.prepare(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`)
     app.get(`/api/${table}`, (_req, res) => res.json(db.prepare(`SELECT data FROM ${table}`).all().map((row) => JSON.parse(row.data))))
     app.put(`/api/${table}/:id`, (req, res) => {
       if (!req.body || Array.isArray(req.body) || req.body.id !== req.params.id) return res.status(400).json({ error: 'Identifiant invalide.' })
-      upsert.run(req.params.id, JSON.stringify(req.body)); res.json({ ok: true })
+      confirmWrite(req, res, () => { upsert.run(req.params.id, JSON.stringify(req.body)); return req.body })
     })
-    app.delete(`/api/${table}/:id`, (req, res) => { db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(req.params.id); res.json({ ok: true }) })
+    app.delete(`/api/${table}/:id`, (req, res) => {
+      confirmWrite(req, res, () => { db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(req.params.id); return { id: req.params.id } })
+    })
     app.put(`/api/${table}`, (req, res) => {
       if (!Array.isArray(req.body) || req.body.some((item) => !item || typeof item.id !== 'string' || !item.id)) return res.status(400).json({ error: 'Liste invalide.' })
-      db.transaction(() => { db.prepare(`DELETE FROM ${table}`).run(); for (const item of req.body) upsert.run(item.id, JSON.stringify(item)) })()
-      res.json({ ok: true, count: req.body.length })
+      if (new Set(req.body.map((item) => item.id)).size !== req.body.length) return res.status(400).json({ error: 'Identifiants dupliqués.' })
+      confirmWrite(req, res, () => {
+        db.prepare(`DELETE FROM ${table}`).run()
+        for (const item of req.body) upsert.run(item.id, JSON.stringify(item))
+        return req.body
+      })
     })
   }
   app.get('/api/settings', (_req, res) => res.json(credentials.settings()))
@@ -52,22 +90,22 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     const body = req.body
     if (!body || Array.isArray(body) || Object.entries(body).some(([key, value]) => !PUBLIC_FIELDS.includes(key) || typeof value !== 'string' || value.length > 100000)) return res.status(400).json({ error: 'Réglages invalides.' })
     if (body.baseUrl !== undefined && !providerForUrl(body.baseUrl)) return res.status(400).json({ error: 'Fournisseur non autorisé.' })
-    credentials.updateSettings(body); res.json(credentials.settings())
+    confirmWrite(req, res, () => { credentials.updateSettings(body); return credentials.settings() })
   })
   app.post('/api/settings/migrate', (req, res) => {
     const body = req.body
     const allowed = [...PUBLIC_FIELDS, 'keys', 'apiKey', 'mistralKey']
     if (!body || Array.isArray(body) || Object.keys(body).some((key) => !allowed.includes(key)) || Object.entries(body).some(([key, value]) => key !== 'keys' && (typeof value !== 'string' || value.length > 100000))) return res.status(400).json({ error: 'Migration invalide.' })
     if (body.keys !== undefined && (!body.keys || Array.isArray(body.keys) || typeof body.keys !== 'object' || Object.values(body.keys).some((key) => typeof key !== 'string' || key.length > 4096))) return res.status(400).json({ error: 'Clés invalides.' })
-    credentials.migrate(body); res.json(credentials.settings())
+    confirmWrite(req, res, () => { credentials.migrate(body); return credentials.settings() })
   })
   app.put('/api/credentials/:provider', (req, res) => {
     if (!Object.hasOwn(PROVIDERS, req.params.provider) || typeof req.body?.key !== 'string' || !req.body.key.trim() || req.body.key.length > 4096 || /[\r\n]/.test(req.body.key) || Object.keys(req.body).length !== 1) return res.status(400).json({ error: 'Clé ou fournisseur invalide.' })
-    credentials.set(req.params.provider, req.body.key.trim()); res.json(credentials.settings())
+    confirmWrite(req, res, () => { credentials.set(req.params.provider, req.body.key.trim()); return credentials.settings() })
   })
   app.delete('/api/credentials/:provider', (req, res) => {
     if (!Object.hasOwn(PROVIDERS, req.params.provider)) return res.status(400).json({ error: 'Fournisseur invalide.' })
-    credentials.remove(req.params.provider); res.json(credentials.settings())
+    confirmWrite(req, res, () => { credentials.remove(req.params.provider); return credentials.settings() })
   })
   let inFlight = false
   app.post('/api/ai', async (req, res) => {
@@ -94,6 +132,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Route inconnue.' }))
   app.use((err, _req, res, _next) => {
     // Never log request bodies, provider exceptions, or credential subprocess output.
+    if ([400, 409].includes(err.status) && !err.type) return res.status(err.status).json({ error: err.message })
     res.status(err.type === 'entity.parse.failed' ? 400 : err.type === 'entity.too.large' ? 413 : 500).json({ error: 'Opération locale impossible ; aucune confirmation de sauvegarde.' })
   })
   return { app, token, credentials, acceptsHostAndOrigin: (headers) => hosts.has(headers.host) && (!headers.origin || origins.has(headers.origin)) }
