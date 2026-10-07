@@ -22,6 +22,7 @@ import { useSettings, hasApiKey } from '../cv'
 import { parseOffer } from '../parse'
 import { StatusBadge } from '../components/StatusBadge'
 import { ApplicationForm } from '../components/ApplicationForm'
+import { useModalFocus } from '../useModalFocus'
 
 type View = 'table' | 'kanban'
 
@@ -56,20 +57,21 @@ export function Applications() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Candidatures</h1>
-          <p className="text-sm text-slate-400">{apps.length} au total</p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Candidatures</h1>
+          <p className="text-sm text-muted">{apps.length} au total</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher…"
-              className="w-56 rounded-lg border border-slate-700 bg-slate-800/60 py-2 pl-9 pr-3 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500"
+              aria-label="Rechercher une candidature"
+              className="w-full rounded-xl border border-line bg-field py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-muted focus:border-indigo-500 sm:w-56"
             />
           </div>
-          <div className="flex rounded-lg border border-slate-700 p-0.5">
+          <div className="flex rounded-lg border border-line p-0.5">
             {(
               [
                 ['table', <Table2 key="t" size={16} />],
@@ -78,9 +80,11 @@ export function Applications() {
             ).map(([v, icon]) => (
               <button
                 key={v}
+                aria-label={v === 'table' ? 'Vue tableau' : 'Vue Kanban'}
+                aria-pressed={view === v}
                 onClick={() => setView(v)}
                 className={`rounded-md px-2.5 py-1.5 transition-colors ${
-                  view === v ? 'bg-indigo-500/20 text-indigo-300' : 'text-slate-500 hover:text-slate-300'
+                  view === v ? 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'text-muted hover:text-secondary'
                 }`}
               >
                 {icon}
@@ -89,13 +93,13 @@ export function Applications() {
           </div>
           <button
             onClick={() => setQuickOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-indigo-500/40 px-4 py-2 text-sm font-medium text-indigo-300 hover:bg-indigo-500/10"
+            className="flex items-center gap-2 rounded-lg border border-indigo-500/40 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10"
           >
             <Zap size={16} /> Ajout express
           </button>
           <button
             onClick={() => setCreating(true)}
-            className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700"
           >
             <Plus size={16} /> Ajouter
           </button>
@@ -145,6 +149,7 @@ function QuickAdd({
   const [text, setText] = useState('')
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const modalRef = useModalFocus(true, () => { if (!loading) onClose() })
 
   async function run() {
     if (!text.trim()) return
@@ -155,23 +160,24 @@ function QuickAdd({
   }
 
   const inputClass =
-    'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
+    'app-field'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
       <div
+        ref={modalRef} role="dialog" aria-modal="true" aria-label="Ajout express"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+        className="app-modal max-w-lg"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <Zap size={17} className="text-indigo-400" /> Ajout express
+            <Zap size={17} className="text-indigo-700 dark:text-indigo-400" /> Ajout express
           </h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-200">
+          <button aria-label="Fermer l’ajout express" onClick={onClose} className="rounded-lg p-2 text-muted hover:text-ink">
             <X size={18} />
           </button>
         </div>
-        <p className="mb-3 text-xs text-slate-400">
+        <p className="mb-3 text-xs text-muted">
           Colle le texte de l'offre : entreprise, poste, lieu et salaire seront extraits
           {hasApiKey(settings) ? ` par l'IA (${settings.model})` : ' automatiquement'}, puis tu valides.
         </p>
@@ -191,13 +197,13 @@ function QuickAdd({
           placeholder="Lien de l'offre (optionnel — détecte aussi la source)"
         />
         <div className="mt-4 flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:text-slate-100">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:text-ink">
             Annuler
           </button>
           <button
             onClick={run}
             disabled={!text.trim() || loading}
-            className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 disabled:opacity-50"
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
             {loading ? 'Extraction…' : 'Extraire et pré-remplir'}
@@ -258,7 +264,7 @@ function TableView({
       <th className="px-4 py-3">
         <button
           onClick={() => toggleSort(k)}
-          className="flex items-center gap-1 uppercase tracking-wide hover:text-slate-300"
+          className="flex items-center gap-1 uppercase tracking-wide hover:text-secondary"
         >
           {label}
           {sortKey === k &&
@@ -270,15 +276,15 @@ function TableView({
 
   if (apps.length === 0)
     return (
-      <div className="rounded-2xl border border-dashed border-slate-800 py-16 text-center text-sm text-slate-500">
+      <div className="rounded-2xl border border-dashed border-line py-16 text-center text-sm text-muted">
         Aucune candidature. Clique sur « Ajouter » pour commencer.
       </div>
     )
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-800">
+    <div className="overflow-x-auto rounded-2xl border border-line">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-800 bg-slate-900/80 text-left text-xs text-slate-500">
+          <tr className="border-b border-line bg-surface text-left text-xs text-muted">
             <Th label="Entreprise" k="company" />
             <Th label="Poste" k="title" />
             <Th label="Statut" k="status" />
@@ -288,12 +294,12 @@ function TableView({
             <th className="px-4 py-3" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800/70">
+        <tbody className="divide-y divide-line">
           {sorted.map((a) => (
             <tr
               key={a.id}
               onClick={() => void navigate({ to: '/candidatures/$id', params: { id: a.id } })}
-              className="group cursor-pointer bg-slate-900/40 hover:bg-slate-800/40"
+              className="group cursor-pointer bg-surface hover:bg-subtle"
             >
               <td className="px-4 py-3 font-medium">
                 <span className="flex items-center gap-1.5">
@@ -304,42 +310,44 @@ function TableView({
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="text-slate-500 hover:text-indigo-400"
+                      className="text-muted hover:text-indigo-700 dark:text-indigo-400"
                     >
                       <ExternalLink size={13} />
                     </a>
                   )}
                 </span>
               </td>
-              <td className="px-4 py-3 text-slate-300">{a.title}</td>
+              <td className="px-4 py-3 text-secondary">{a.title}</td>
               <td className="px-4 py-3">
                 <StatusBadge status={a.status} />
               </td>
-              <td className="px-4 py-3 text-slate-400">{fmt(a.appliedAt)}</td>
+              <td className="px-4 py-3 text-muted">{fmt(a.appliedAt)}</td>
               <td className="px-4 py-3">
-                <span className={`flex items-center gap-1.5 ${isDue(a) ? 'text-amber-400' : 'text-slate-400'}`}>
+                <span className={`flex items-center gap-1.5 ${isDue(a) ? 'text-amber-700 dark:text-amber-400' : 'text-muted'}`}>
                   {isDue(a) && <AlarmClock size={13} />}
                   {fmt(a.nextActionAt)}
                 </span>
               </td>
-              <td className="px-4 py-3 text-slate-400">{a.source || '—'}</td>
+              <td className="px-4 py-3 text-muted">{a.source || '—'}</td>
               <td className="px-4 py-3">
-                <div className="flex justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex justify-end gap-1">
                   <button
+                    aria-label={`Modifier ${a.company}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       onEdit(a)
                     }}
-                    className="rounded-md p-1.5 text-slate-400 hover:bg-slate-700 hover:text-slate-100"
+                    className="rounded-md p-1.5 text-muted hover:bg-subtle hover:text-ink"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
+                    aria-label={`Supprimer ${a.company}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       onDelete(a)
                     }}
-                    className="rounded-md p-1.5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
+                    className="rounded-md p-1.5 text-muted hover:bg-rose-500/20 hover:text-rose-700 dark:text-rose-300"
                   >
                     <Trash2 size={14} />
                   </button>
@@ -370,7 +378,7 @@ function KanbanView({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
       {STATUSES.map((status) => {
         const col = apps.filter((a) => a.status === status)
         return (
@@ -383,14 +391,14 @@ function KanbanView({
             onDragLeave={() => setOverCol(null)}
             onDrop={() => drop(status)}
             className={`flex min-h-40 flex-col rounded-xl border p-2 transition-colors ${
-              overCol === status ? 'border-indigo-500 bg-indigo-500/5' : 'border-slate-800 bg-slate-900/40'
+              overCol === status ? 'border-indigo-500 bg-indigo-500/5' : 'border-line bg-surface'
             }`}
           >
             <div className="mb-2 flex items-center justify-between px-1.5 pt-1">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
                 {STATUS_LABELS[status]}
               </span>
-              <span className="text-xs text-slate-600">{col.length}</span>
+              <span className="text-xs text-muted">{col.length}</span>
             </div>
             <div className="flex flex-col gap-2">
               {col.map((a) => (
@@ -399,12 +407,12 @@ function KanbanView({
                   draggable
                   onDragStart={() => setDragId(a.id)}
                   onClick={() => onEdit(a)}
-                  className="cursor-grab rounded-lg border border-slate-800 bg-slate-800/60 p-2.5 text-sm shadow hover:border-slate-600 active:cursor-grabbing"
+                  className="cursor-grab rounded-lg border border-line bg-subtle p-2.5 text-sm shadow hover:border-slate-600 active:cursor-grabbing"
                 >
                   <div className="font-medium leading-tight">{a.company}</div>
-                  <div className="mt-0.5 text-xs leading-tight text-slate-400">{a.title}</div>
+                  <div className="mt-0.5 text-xs leading-tight text-muted">{a.title}</div>
                   {isDue(a) && (
-                    <div className="mt-1.5 flex items-center gap-1 text-[11px] text-amber-400">
+                    <div className="mt-1.5 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400">
                       <AlarmClock size={11} /> Relance due
                     </div>
                   )}
