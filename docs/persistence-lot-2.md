@@ -4,7 +4,7 @@
 
 Every application, analysis, settings and credential mutation requires a current revision and a unique operation ID. Data, revision and acknowledgement receipt commit in one SQLite transaction. Replaying an identical operation returns its original receipt; reusing its ID for different content or writing against stale data returns HTTP 409.
 
-The browser serializes mutations and publishes confirmed data only after acknowledgement. A missing response, conflict or unusable acknowledgement blocks further writes until explicit synchronization. Writes are never retried automatically. Legacy browser sources are deleted only after confirmation or identical readback; conflicts retain the source.
+The browser serializes mutations and publishes confirmed data only after acknowledgement. A missing response, conflict or unusable acknowledgement blocks further writes until explicit synchronization. Synchronization renews the guarded local bootstrap session, allowing recovery after server restart without reloading and losing drafts. Writes are never retried automatically. Legacy browser sources are deleted only after confirmation or identical readback; conflicts retain the source.
 
 ## Backups and restoration
 
@@ -24,6 +24,8 @@ Both restoration tools exclusively create their destination and refuse to overwr
 
 The UI's legacy array import replaces applications only, after explicit confirmation and a verified encrypted backup. It does not import complete snapshots or reconcile the external candidature register. Reconciliation belongs to lot 3.
 
-## Verification in progress
+## Verification
 
-Deterministic tests cover acknowledgement ordering, failure rollback, conflicts, replay, source retention, tampered exports, exclusive restoration and real Windows DPAPI restoration. An isolated production browser check confirmed profile/CV persistence after reload, rejection of stale writes between two tabs, retained draft recovery after explicit synchronization, and creation of a backup through the UI. The resulting encrypted backup was restored with the CLI into a new database at revision 3. No browser console errors were recorded. Final failure checks, review and the pull request remain pending. This document does not claim the lot is complete.
+The 37 deterministic tests cover acknowledgement ordering, failure rollback, conflicts, replay, source retention, tampered exports, exclusive restoration and real Windows DPAPI restoration. An isolated production browser check confirmed profile/CV persistence after reload, rejection of stale writes between two tabs, retained draft recovery after explicit synchronization, and creation of a backup through the UI. The resulting encrypted backup was restored with the CLI into a new database at revision 3. Additional browser checks verified the in-page navigation guard and an offline write followed by server restart, explicit synchronization and successful persistence without reloading the draft. The saved result survived reload. All temporary browser tabs and servers were closed.
+
+Local review corrected stale-session recovery, draft loss on navigation or concurrent editing, invalid acknowledgement handling, duplicate operation checks and backup publication after verification. The exact staged content is checked with TypeScript, production build and the complete test suite. External review availability is reported on the pull request and is not implied by local tests. No paid provider calls or live user records were changed.

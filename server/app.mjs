@@ -45,6 +45,8 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     if (['POST', 'PUT', 'PATCH'].includes(req.method) && !req.is('application/json')) return res.status(415).json({ error: 'JSON requis.' })
     next()
   })
+  // Same bootstrap capability as the HTML page, guarded by Host/Origin above.
+  app.get('/local-session', (_req, res) => res.json({ token }))
   app.use('/api', express.json({ limit: '10mb' }))
   app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
   let backupRunning = false

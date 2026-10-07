@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { Application } from './types'
 import type { Settings, CvAnalysis } from './cv'
-import { apiGet, apiWrite } from './api'
+import { apiGet, apiWrite, refreshSession } from './api'
 import { createConfirmedStore } from './persistence-core.mjs'
 import { migrateLegacyList } from './legacy-migration.mjs'
 
@@ -18,6 +18,7 @@ const initialState: DataState = {
 export const dataStore = createConfirmedStore<DataState>({
   initialState,
   load: async () => {
+    await refreshSession()
     const loaded = await apiGet<DataState>('state')
     return { ...loaded, settings: { ...initialState.settings, ...loaded.settings } }
   },
