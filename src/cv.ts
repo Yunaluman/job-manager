@@ -1,18 +1,12 @@
-// Module Amélioration CV — réglages, analyses, prompt recruteur, appel Mistral.
-// Persistance : serveur local SQLite (via api.ts), plus rien dans localStorage.
-// SÉCURITÉ : la clé API n'est jamais loggée, jamais incluse dans les exports,
-// et n'est envoyée qu'à https://api.mistral.ai. Pour une future version SaaS,
-// elle devra impérativement être déplacée côté serveur.
+// Provider credentials stay on the local server; the UI receives presence flags only.
 import { useSyncExternalStore } from 'react'
-import { apiGet, apiSend } from './api'
+import { apiGet, apiSend, apiRequest } from './api'
 
 const LEGACY_SETTINGS = 'jobpilot.settings.v1'
 const LEGACY_ANALYSES = 'jobpilot.cv-analyses.v1'
 
 export interface Settings {
-  // Une clé par fournisseur (id du preset, ou 'custom') : changer de
-  // fournisseur dans le dropdown fait suivre la bonne clé automatiquement.
-  keys: Record<string, string>
+  keyStatus: Record<string, boolean>
   baseUrl: string
   model: string
   cvText: string
@@ -29,7 +23,7 @@ export interface Settings {
 export const PROVIDER_PRESETS = [
   {
     id: 'mistral',
-    label: 'Mistral (UE, RGPD)',
+    label: 'Mistral',
     baseUrl: 'https://api.mistral.ai/v1',
     model: 'mistral-large-latest',
     keyHint: 'Clé gratuite sur console.mistral.ai',
@@ -54,7 +48,7 @@ export interface CvAnalysis {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  keys: {},
+  keyStatus: {},
   baseUrl: PROVIDER_PRESETS[0].baseUrl,
   model: PROVIDER_PRESETS[0].model,
   cvText: '',
@@ -77,12 +71,12 @@ export function providerId(s: Settings): string {
   return PROVIDER_PRESETS.find((p) => p.baseUrl === s.baseUrl)?.id ?? 'custom'
 }
 
-// Clé active = celle du fournisseur sélectionné
-export function activeKey(s: Settings): string {
-  return s.keys?.[providerId(s)] ?? ''
+export function hasApiKey(s: Settings): boolean {
+  return s.keyStatus?.[providerId(s)] === true
 }
 let settingsCache: Settings = DEFAULT_SETTINGS
 let analysesCache: CvAnalysis[] = []
+let settingsError = ''
 const listeners = new Set<() => void>()
 const notify = () => listeners.forEach((l) => l())
 const subscribe = (cb: () => void) => {
@@ -93,25 +87,21 @@ const subscribe = (cb: () => void) => {
 }
 
 // Chargement initial + migration unique depuis l'ancien localStorage
-async function init() {
+async function init(attempt = 0) {
   try {
-    const [settings, analyses] = await Promise.all([
+    const [loadedSettings, analyses] = await Promise.all([
       apiGet<Partial<Settings>>('settings'),
       apiGet<CvAnalysis[]>('analyses'),
     ])
+    let settings = loadedSettings
+    settingsCache = { ...DEFAULT_SETTINGS, ...loadedSettings }
+    analysesCache = analyses
+    notify()
     const legacySettings = localStorage.getItem(LEGACY_SETTINGS)
-    if (!settings.cvText && legacySettings) {
-      Object.assign(settings, JSON.parse(legacySettings))
-      apiSend('PUT', 'settings', settings)
+    if (legacySettings) {
+      // Remove the browser copy only after verified server persistence.
+      settings = await apiRequest<Settings>('POST', 'settings/migrate', JSON.parse(legacySettings))
       localStorage.removeItem(LEGACY_SETTINGS)
-    }
-    // Migration des anciens réglages mono-clé (mistralKey puis apiKey) vers keys par fournisseur
-    const old = settings as Partial<Settings> & { mistralKey?: string; apiKey?: string }
-    const legacyKey = old.apiKey || old.mistralKey
-    if (legacyKey && !settings.keys) {
-      const id = PROVIDER_PRESETS.find((p) => p.baseUrl === old.baseUrl)?.id ?? PROVIDER_PRESETS[0].id
-      settings.keys = { [id]: legacyKey }
-      apiSend('PUT', 'settings', { keys: settings.keys, apiKey: '', mistralKey: '' })
     }
     const legacyAnalyses = localStorage.getItem(LEGACY_ANALYSES)
     let allAnalyses = analyses
@@ -125,20 +115,30 @@ async function init() {
       ...Object.fromEntries(Object.entries(settings).filter(([, v]) => v)),
     }
     analysesCache = allAnalyses.sort((a, b) => b.date.localeCompare(a.date))
+    settingsError = ''
     notify()
-  } catch {
-    setTimeout(init, 1500)
+  } catch (e) {
+    settingsError = e instanceof Error ? e.message : 'Chargement ou migration impossible.'
+    notify()
+    if (attempt < 1) setTimeout(() => void init(attempt + 1), 1500)
   }
 }
 void init()
 
 export const useSettings = () => useSyncExternalStore(subscribe, () => settingsCache)
 export const useAnalyses = () => useSyncExternalStore(subscribe, () => analysesCache)
+export const useSettingsError = () => useSyncExternalStore(subscribe, () => settingsError)
 
 export function saveSettings(patch: Partial<Settings>) {
   settingsCache = { ...settingsCache, ...patch }
   notify()
   apiSend('PUT', 'settings', patch)
+}
+
+export async function saveCredential(provider: string, key?: string) {
+  const saved = await apiRequest<Settings>(key === undefined ? 'DELETE' : 'PUT', `credentials/${provider}`, key === undefined ? undefined : { key })
+  settingsCache = { ...DEFAULT_SETTINGS, ...saved }
+  notify()
 }
 
 export function addAnalysis(a: Omit<CvAnalysis, 'id' | 'date'>): CvAnalysis {
@@ -227,31 +227,9 @@ ${clip(offer, MAX_OFFER_CHARS)}
 ${clip(s.cvText, MAX_CV_CHARS)}`
 }
 
-export async function callApi(prompt: string, s: Settings, maxTokens = 1600): Promise<string> {
-  const res = await fetch(`${s.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${activeKey(s)}`,
-    },
-    body: JSON.stringify({
-      model: s.model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-      // Plafonne la réponse : évite qu'un modèle bavard brûle le quota
-      max_tokens: maxTokens,
-    }),
-  })
-  if (!res.ok) {
-    if (res.status === 401) throw new Error('Clé API invalide ou expirée.')
-    if (res.status === 404) throw new Error(`Modèle « ${s.model} » introuvable chez ce fournisseur.`)
-    if (res.status === 429) throw new Error('Limite de débit atteinte — réessaie dans une minute.')
-    throw new Error(`Erreur API (${res.status}).`)
-  }
-  const data = await res.json()
-  const content = data.choices?.[0]?.message?.content
-  if (typeof content !== 'string') throw new Error('Réponse inattendue de l’API.')
-  return content
+export async function callApi(prompt: string, s: Settings, maxTokens = 1600, temperature = 0.3): Promise<string> {
+  const data = await apiRequest<{ content: string }>('POST', 'ai', { prompt, baseUrl: s.baseUrl, model: s.model, maxTokens, temperature })
+  return data.content
 }
 
 export const analyzeWithApi = (cv: string, offer: string, s: Settings) =>

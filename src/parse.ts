@@ -1,7 +1,7 @@
 // Ajout express : extraction des champs d'une offre d'emploi collée.
 // Deux stratégies : IA (fournisseur configuré dans le module CV) avec repli
 // automatique sur une heuristique locale si pas de clé ou en cas d'erreur.
-import { activeKey, type Settings } from './cv'
+import { hasApiKey, callApi, type Settings } from './cv'
 
 export interface ParsedOffer {
   company?: string
@@ -57,28 +57,10 @@ export function parseOfferHeuristic(text: string): ParsedOffer {
 }
 
 export async function parseOfferWithApi(text: string, s: Settings): Promise<ParsedOffer> {
-  const res = await fetch(`${s.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${activeKey(s)}` },
-    body: JSON.stringify({
-      model: s.model,
-      temperature: 0,
-      // Un petit JSON de 5 champs : inutile d'autoriser plus
-      max_tokens: 300,
-      messages: [
-        {
-          role: 'user',
-          content: `Extrais de cette offre d'emploi un JSON strict (sans markdown, sans commentaire) avec exactement ces clés : company (nom de l'entreprise), title (intitulé du poste, sans "H/F"), location (ville), salary (tel qu'écrit, sinon null), source (site d'origine si identifiable, sinon null). Valeurs en français, null si introuvable.
+  const raw = await callApi(`Extrais de cette offre d'emploi un JSON strict (sans markdown, sans commentaire) avec exactement ces clés : company (nom de l'entreprise), title (intitulé du poste, sans "H/F"), location (ville), salary (tel qu'écrit, sinon null), source (site d'origine si identifiable, sinon null). Valeurs en français, null si introuvable.
 
 OFFRE :
-${text.slice(0, 6000)}`,
-        },
-      ],
-    }),
-  })
-  if (!res.ok) throw new Error(`API ${res.status}`)
-  const data = await res.json()
-  const raw: string = data.choices?.[0]?.message?.content ?? ''
+${text.slice(0, 6000)}`, s, 300, 0)
   const json = raw.match(/\{[\s\S]*\}/)?.[0]
   if (!json) throw new Error('Pas de JSON dans la réponse')
   const parsed = JSON.parse(json)
@@ -95,7 +77,7 @@ ${text.slice(0, 6000)}`,
 // Point d'entrée : IA si clé configurée, repli heuristique sinon / en cas d'échec
 export async function parseOffer(text: string, url: string, settings: Settings): Promise<ParsedOffer> {
   let parsed: ParsedOffer
-  if (activeKey(settings)) {
+  if (hasApiKey(settings)) {
     try {
       parsed = await parseOfferWithApi(text, settings)
     } catch {
