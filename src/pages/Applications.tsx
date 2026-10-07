@@ -18,7 +18,7 @@ import {
 import type { Application, Status } from '../types'
 import { STATUSES, STATUS_LABELS } from '../types'
 import { useApplications, updateApplication, deleteApplication, isDue } from '../storage'
-import { useSettings, activeKey } from '../cv'
+import { useSettings, hasApiKey } from '../cv'
 import { parseOffer } from '../parse'
 import { StatusBadge } from '../components/StatusBadge'
 import { ApplicationForm } from '../components/ApplicationForm'
@@ -173,7 +173,7 @@ function QuickAdd({
         </div>
         <p className="mb-3 text-xs text-slate-400">
           Colle le texte de l'offre : entreprise, poste, lieu et salaire seront extraits
-          {activeKey(settings) ? ` par l'IA (${settings.model})` : ' automatiquement'}, puis tu valides.
+          {hasApiKey(settings) ? ` par l'IA (${settings.model})` : ' automatiquement'}, puis tu valides.
         </p>
         <textarea
           className={inputClass}

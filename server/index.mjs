@@ -1,93 +1,70 @@
-// Serveur local JobPilot — persistance SQLite.
-// Écoute uniquement sur 127.0.0.1 : inaccessible depuis le réseau.
-// Base : %LOCALAPPDATA%\JobPilot\jobpilot.db (survit au navigateur, facile à sauvegarder).
-import express from 'express'
 import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { join } from 'node:path'
+import express from 'express'
+import { createServer } from 'node:http'
+import { mkdirSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import os from 'node:os'
+import { createApp } from './app.mjs'
+import { createWindowsProtector } from './credentials.mjs'
 
-const dataDir = process.env.LOCALAPPDATA
-  ? join(process.env.LOCALAPPDATA, 'JobPilot')
-  : join(os.homedir(), '.jobpilot')
+const development = process.argv.includes('--dev')
+const port = Number(process.env.JOBPILOT_PORT ?? (development ? 5173 : 3001))
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid local port.')
+const dataDir = process.env.JOBPILOT_DATA_DIR ?? (process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'JobPilot') : join(os.homedir(), '.jobpilot'))
 mkdirSync(dataDir, { recursive: true })
-const dbPath = join(dataDir, 'jobpilot.db')
-
-const db = new Database(dbPath)
-db.pragma('journal_mode = WAL')
-db.exec(`
-  CREATE TABLE IF NOT EXISTS applications (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS analyses (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-`)
-
-const app = express()
-app.use(express.json({ limit: '10mb' }))
-
-// --- Fabrique de routes CRUD identiques pour applications et analyses ---
-function crud(table) {
-  const list = db.prepare(`SELECT data FROM ${table}`)
-  const upsert = db.prepare(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`)
-  const remove = db.prepare(`DELETE FROM ${table} WHERE id = ?`)
-  const clear = db.prepare(`DELETE FROM ${table}`)
-  const replaceAll = db.transaction((items) => {
-    clear.run()
-    for (const item of items) upsert.run(item.id, JSON.stringify(item))
-  })
-
-  app.get(`/api/${table}`, (_req, res) => {
-    res.json(list.all().map((r) => JSON.parse(r.data)))
-  })
-  app.put(`/api/${table}/:id`, (req, res) => {
-    upsert.run(req.params.id, JSON.stringify(req.body))
-    res.json({ ok: true })
-  })
-  app.delete(`/api/${table}/:id`, (req, res) => {
-    remove.run(req.params.id)
-    res.json({ ok: true })
-  })
-  // Remplacement complet (import JSON / migration depuis localStorage)
-  app.put(`/api/${table}`, (req, res) => {
-    if (!Array.isArray(req.body)) return res.status(400).json({ error: 'array attendu' })
-    replaceAll(req.body)
-    res.json({ ok: true, count: req.body.length })
-  })
+let db
+let vite
+const server = createServer()
+let closing = false
+async function close(code = 0) {
+  if (closing) return
+  closing = true
+  server.closeAllConnections()
+  await new Promise((done) => server.close(done))
+  await vite?.close()
+  db?.close()
+  process.exitCode = code
 }
-
-crud('applications')
-crud('analyses')
-
-const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?')
-const setSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
-
-app.get('/api/settings', (_req, res) => {
-  const row = getSetting.get('main')
-  res.json(row ? JSON.parse(row.value) : {})
-})
-app.put('/api/settings', (req, res) => {
-  const row = getSetting.get('main')
-  const merged = { ...(row ? JSON.parse(row.value) : {}), ...req.body }
-  setSetting.run('main', JSON.stringify(merged))
-  res.json({ ok: true })
-})
-
-const PORT = 3001
-const server = app.listen(PORT, '127.0.0.1', () => {
-  console.log(`[jobpilot] API SQLite sur http://127.0.0.1:${PORT} — base : ${dbPath}`)
-})
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    // Une API tourne déjà (autre pnpm dev, preview…) : on la réutilise au lieu
-    // de tout faire tomber — le front passera par elle via le proxy Vite.
-    // Si elle est zombie/obsolète, la libérer avec :
-    //   Get-NetTCPConnection -LocalPort 3001 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }
-    console.warn(
-      `[jobpilot] Le port ${PORT} est déjà utilisé — réutilisation de l'API existante. ` +
-        `Si elle est obsolète, libère le port (voir README, section Dépannage) puis relance.`,
-    )
-    setInterval(() => {}, 1 << 30) // reste en vie pour ne pas entraîner vite dans sa chute (concurrently -k)
+process.once('SIGINT', () => void close())
+process.once('SIGTERM', () => void close())
+try {
+  // Reserve the port before opening or migrating the user's database.
+  await new Promise((done, reject) => {
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', done)
+  })
+  db = new Database(join(dataDir, 'jobpilot.db'))
+  db.pragma('journal_mode = WAL')
+  const { app, token, acceptsHostAndOrigin } = createApp({ db, protector: createWindowsProtector(), port, development })
+  server.prependListener('upgrade', (req, socket) => {
+    if (!acceptsHostAndOrigin(req.headers)) socket.destroy()
+  })
+  const inject = (html) => html.replace('</head>', `<meta name="jobpilot-session" content="${token}"></head>`)
+  if (development) {
+    const { createServer: createViteServer } = await import('vite')
+    vite = await createViteServer({ server: { middlewareMode: true, hmr: { server } }, appType: 'custom' })
+    app.use(vite.middlewares)
+    app.use(async (req, res, next) => {
+      if (req.method !== 'GET' || !req.accepts('html')) return next()
+      try {
+        const html = await vite.transformIndexHtml(req.originalUrl, readFileSync(resolve('index.html'), 'utf8'))
+        res.type('html').send(inject(html))
+      } catch { res.status(500).send('Page indisponible.') }
+    })
   } else {
-    console.error('[jobpilot] Erreur serveur :', err)
-    process.exit(1)
+    app.use((req, res, next) => {
+      if (req.path.endsWith('.html')) return next()
+      express.static(resolve('dist'), { index: false })(req, res, next)
+    })
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || !req.accepts('html')) return next()
+      res.type('html').send(inject(readFileSync(resolve('dist/index.html'), 'utf8')))
+    })
   }
-})
+  app.use((_err, _req, res, _next) => res.status(500).send('Opération locale impossible.'))
+  server.on('request', app)
+  console.log(`[jobpilot] http://127.0.0.1:${port} — local session ready`)
+} catch {
+  console.error('[jobpilot] Startup failed. Check the port, build and Windows credential access. Existing services were not reused or stopped.')
+  await close(1)
+}

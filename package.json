@@ -4,10 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n api,web \"node server/index.mjs\" \"vite\"",
+    "dev": "node server/index.mjs --dev",
     "server": "node server/index.mjs",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "node server/index.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.120.0",
