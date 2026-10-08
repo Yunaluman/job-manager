@@ -12,6 +12,7 @@ import {
   hasApiKey,
 } from '../cv'
 import { ProviderPicker } from '../components/ProviderPicker'
+import { AnalysisApplicationLink } from '../components/AnalysisApplicationLink'
 import { DraftGuard } from '../components/DraftGuard'
 import { useModalFocus } from '../useModalFocus'
 
@@ -41,7 +42,7 @@ export function LetterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linked])
 
-  const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
+  const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0 && (!appId || Boolean(linked))
   const jobTitle = offer.trim().split('\n')[0].slice(0, 80) || 'Sans titre'
   const current = letters.find((a) => a.id === selected)
 
@@ -52,11 +53,13 @@ export function LetterPage() {
   }
 
   async function save(result: string, mode: 'api' | 'manuel') {
-    const a = await addAnalysis({ jobTitle, result, score: null, mode, kind: 'lettre' })
+    if (appId && !linked) throw new Error('Candidature liée introuvable. La saisie est conservée.')
+    const a = await addAnalysis({ jobTitle, result, score: null, mode, kind: 'lettre', applicationId: linked?.id })
     setSelected(a.id)
   }
 
   async function generate() {
+    if (!ready) return
     setLoading(true)
     setError('')
     try {
@@ -84,6 +87,8 @@ export function LetterPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <DraftGuard dirty={pasteText.length > 0} />
+      {linked && <p className="mb-3 text-sm text-muted">Lettre liée à {linked.company} — {linked.title}. Elle sera visible dans ce dossier.</p>}
+      {appId && !linked && <p role="alert" className="mb-3 text-sm text-rose-700 dark:text-rose-300">Le dossier lié est introuvable. Retourne aux candidatures avant de rédiger une lettre.</p>}
       <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
         <Mail size={22} className="text-indigo-700 dark:text-indigo-400" /> Lettre de motivation
       </h1>
@@ -205,6 +210,7 @@ export function LetterPage() {
                   {letterCopied ? 'Copiée !' : 'Copier la lettre'}
                 </button>
               </div>
+              <AnalysisApplicationLink key={current.id} analysis={current} />
               <div className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-secondary">
                 {current.result}
               </div>

@@ -17,8 +17,9 @@ function fixture(t) {
   db.pragma('journal_mode = WAL')
   initializeDatabase(db)
   createWriteCoordinator(db)
-  db.prepare('INSERT INTO applications VALUES (?, ?)').run('app', JSON.stringify({ id: 'app', company: 'Fixture' }))
-  db.prepare('INSERT INTO analyses VALUES (?, ?)').run('analysis', JSON.stringify({ id: 'analysis', result: 'Fixture analysis' }))
+  db.prepare('INSERT INTO applications VALUES (?, ?)').run('app', JSON.stringify({ id: 'app', company: 'Fixture', eventHistoryComplete: false,
+    events: [{ id: 'sent', kind: 'sent', occurredAt: '2026-01-01', source: 'manual' }, { id: 'interview', kind: 'interview', occurredAt: '2026-01-05', source: 'manual' }] }))
+  db.prepare('INSERT INTO analyses VALUES (?, ?)').run('analysis', JSON.stringify({ id: 'analysis', applicationId: 'app', result: 'Fixture analysis' }))
   const settings = { cvText: 'Fixture CV', profileName: 'Fixture Name', keys: { mistral: 'never-export-this' }, keyStatus: { mistral: true } }
   t.after(() => {
     db.close()
@@ -55,6 +56,21 @@ test('tampered backups fail before creating a destination', (t) => {
   assert.throws(() => restoreSnapshot(snapshot, destination))
   assert.equal(existsSync(destination), false)
   assert.throws(() => validateSnapshot({ ...snapshot, version: 2 }))
+})
+
+test('v1 restoration preserves dated milestones, links and untouched legacy incomplete histories', (t) => {
+  const { db, directory, settings } = fixture(t)
+  const legacy = { id: 'legacy', status: 'refusee', appliedAt: '2025-01-01', history: [{ date: '2025-02-01', event: 'old unstructured note' }] }
+  db.prepare('INSERT INTO applications VALUES (?, ?)').run(legacy.id, JSON.stringify(legacy))
+  const snapshot = exportSnapshot(db, settings, 1)
+  const destination = join(directory, 'v1-events-restored.db')
+  restoreSnapshot(snapshot, destination)
+  const restored = new Database(destination, { readonly: true })
+  try {
+    assert.deepEqual(exportSnapshot(restored, snapshot.payload.settings, 1).payload, snapshot.payload)
+    assert.deepEqual(JSON.parse(restored.prepare('SELECT data FROM applications WHERE id = ?').get('legacy').data), legacy)
+    assert.equal(JSON.parse(restored.prepare('SELECT data FROM analyses').get().data).applicationId, 'app')
+  } finally { restored.close() }
 })
 
 test('real DPAPI online backup restores WAL data and protected credentials', { skip: process.platform !== 'win32' }, async (t) => {

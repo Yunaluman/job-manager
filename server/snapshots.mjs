@@ -3,6 +3,7 @@ import { openSync, writeFileSync, fsyncSync, closeSync, unlinkSync } from 'node:
 import Database from 'better-sqlite3'
 import { assertDatabaseIntegrity, PUBLIC_FIELDS } from './credentials.mjs'
 import { monitoringSnapshot, restoreMonitoring, validateMonitoringSnapshot } from './ai-monitoring.mjs'
+import { validateApplicationEvents } from '../src/application-events.mjs'
 
 const checksum = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 export function exportSnapshot(db, settings, version = 2) {
@@ -27,6 +28,7 @@ export function validateSnapshot(snapshot) {
     if (!Array.isArray(rows) || rows.some((row) => !row || typeof row !== 'object' || Array.isArray(row) || typeof row.id !== 'string' || !row.id) || new Set(rows.map((row) => row.id)).size !== rows.length) throw new Error('Invalid snapshot rows.')
   }
   if (snapshot.version === 2) validateMonitoringSnapshot(snapshot.payload.monitoring)
+  applications.forEach(validateApplicationEvents)
   return snapshot.payload
 }
 

@@ -43,6 +43,7 @@ export interface CvAnalysis {
   score: number | null
   mode: 'api' | 'manuel'
   kind?: 'cv' | 'lettre' // absent = 'cv' (données antérieures)
+  applicationId?: string // Explicit candidature link; never inferred from generated text.
 }
 
 // Économie de tokens : plafonds sur ce qu'on envoie (≈ 4 caractères / token).
@@ -62,6 +63,16 @@ export function hasApiKey(s: Settings): boolean {
 }
 export const useSettings = () => useData().settings
 export const useAnalyses = () => useData().analyses
+
+export async function linkAnalysis(id: string, applicationId?: string) {
+  return dataStore.mutate<CvAnalysis>((state) => {
+    const current = state.analyses.find((analysis) => analysis.id === id)
+    if (!current) throw new Error('Analyse introuvable. Synchronise les données.')
+    const next = { ...current, applicationId }
+    return { method: 'PUT', path: `analyses/${id}`, body: next,
+      apply: (previous, saved) => ({ ...previous, analyses: previous.analyses.map((analysis) => analysis.id === id ? saved : analysis) }) }
+  })
+}
 export function useSettingsError() {
   const status = usePersistenceStatus()
   const initializationError = useInitializationError()
