@@ -11,6 +11,7 @@ import { initializeActions, planningSnapshot, registerActionRoutes } from './act
 import { initializeJourney, journeySnapshot, registerJourneyRoutes } from './journey.mjs'
 import { registerDocumentRoutes } from './documents.mjs'
 import { cvText } from '../src/cv-document.mjs'
+import { registerSubmissionRoutes } from './submissions.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -66,6 +67,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   registerActionRoutes(app, db, confirmWrite)
   registerJourneyRoutes(app, db, confirmWrite)
   registerDocumentRoutes(app, db, confirmWrite)
+  registerSubmissionRoutes(app, db, confirmWrite)
   app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
   let backupRunning = false
   app.post('/api/backups', async (_req, res, next) => {

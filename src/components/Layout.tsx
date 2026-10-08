@@ -7,13 +7,13 @@ import { ThemePicker } from './ThemePicker'
 import { AiBudgetBanner } from './AiBudgetBanner'
 
 const destinations = [
-  { to: '/', label: 'Vue d’ensemble', icon: LayoutDashboard },
+  { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
   { to: '/offres', label: 'Offres', icon: Briefcase },
-  { to: '/actions', label: 'Actions', icon: ListTodo },
   { to: '/candidatures', label: 'Candidatures', icon: KanbanSquare },
-  { to: '/cv', label: 'Analyse du CV', icon: FileText },
-  { to: '/lettre', label: 'Lettres', icon: Mail },
+  { to: '/actions', label: 'Actions', icon: ListTodo },
   { to: '/profil', label: 'Mon profil', icon: User },
+  { to: '/cv', label: 'Analyse du CV', icon: FileText },
+  { to: '/lettre', label: 'Textes de lettres conservés', icon: Mail },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
   { to: '/activite-ia', label: 'Activité IA', icon: Activity },
 ] as const
@@ -58,7 +58,7 @@ export function Layout() {
         <button aria-label="Fermer le menu" className="ml-auto rounded-lg p-2 text-muted lg:hidden" onClick={() => { setOpen(false); menuButton.current?.focus() }}><X size={18} /></button>
       </div>
       <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">Espace de travail</p>
-      <nav className="flex flex-col gap-1.5">{destinations.map(({ to, label, icon: Icon }) => <Link key={to} to={to} onClick={() => setOpen(false)} className={linkClass} activeOptions={{ exact: to === '/' }}><Icon size={18} aria-hidden="true" />{label}</Link>)}</nav>
+      <nav className="flex flex-col gap-1.5">{destinations.slice(0,5).map(({ to, label, icon: Icon }) => <Link key={to} to={to} onClick={() => setOpen(false)} className={linkClass} activeOptions={{ exact: to === '/' }}><Icon size={18} aria-hidden="true" />{label}</Link>)}<p className="mt-5 px-3 text-[10px] font-semibold uppercase tracking-wide text-muted">Outils et paramètres</p>{destinations.slice(5).map(({to,label,icon:Icon})=><Link key={to} to={to} onClick={()=>setOpen(false)} className={linkClass}><Icon size={18} aria-hidden="true" />{label}</Link>)}</nav>
       <div className="mt-auto pt-8"><div className="rounded-2xl border border-line bg-field p-4"><p className="text-xs font-semibold text-secondary">Un suivi, à ton rythme</p><p className="mt-1 text-xs leading-relaxed text-muted">Candidatures et brouillons réunis sur cet appareil.</p></div></div>
     </aside>
     <div className="min-w-0 flex-1">

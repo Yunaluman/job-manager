@@ -1,220 +1,40 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import {
-  ArrowLeft,
-  Pencil,
-  Trash2,
-  ExternalLink,
-  MapPin,
-  Banknote,
-  User,
-  Globe,
-  CalendarDays,
-  AlarmClock,
-  History,
-  Sparkles,
-  Mail,
-  ChevronRight,
-} from 'lucide-react'
-import { useApplications, updateApplication, deleteApplication, isDue } from '../storage'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { useData } from '../data'
+import { updateApplication, deleteApplication } from '../storage'
 import { firstSendDate } from '../application-events.mjs'
-import { ApplicationTimeline } from '../components/ApplicationTimeline'
-import type { Status } from '../types'
+import { withDeclaredSends, nextJourneyStep } from '../journey-progress.mjs'
+import { DECISION_LABELS, RESULT_LABELS } from '../journey'
 import { STATUSES, STATUS_LABELS } from '../types'
+import type { Status } from '../types'
 import { StatusBadge } from '../components/StatusBadge'
 import { ApplicationForm } from '../components/ApplicationForm'
+import { ApplicationTimeline } from '../components/ApplicationTimeline'
 import { DocumentsPanel } from '../components/DocumentsPanel'
 import { CvDocumentsPanel } from '../components/CvDocumentsPanel'
-
-function fmt(d?: string) {
-  return d ? new Date(d).toLocaleDateString('fr-FR') : '—'
-}
-
-function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string }) {
-  if (!value) return null
-  return (
-    <div className="flex items-center gap-2.5 text-sm">
-      <span className="text-muted">{icon}</span>
-      <span className="text-muted">{label}</span>
-      <span className="ml-auto font-medium text-ink">{value}</span>
-    </div>
-  )
-}
-
+import { SubmissionPanel } from '../components/SubmissionPanel'
+const tabs = {summary:'Synthèse',offer:'Offre et qualification',documents:'Documents',history:'Historique'} as const
+const fmt=(value?:string)=>value?new Date(`${value.slice(0,10)}T12:00:00Z`).toLocaleDateString('fr-FR'):'Inconnu'
 export function ApplicationDetail() {
-  const { id } = useParams({ strict: false }) as { id: string }
-  const apps = useApplications()
-  const navigate = useNavigate()
-  const [editing, setEditing] = useState(false)
-  const app = apps.find((a) => a.id === id)
-
-  if (!app)
-    return (
-      <div className="mx-auto max-w-3xl pt-16 text-center text-sm text-muted">
-        Candidature introuvable.{' '}
-        <Link to="/candidatures" className="text-indigo-700 dark:text-indigo-400 hover:underline">
-          Retour à la liste
-        </Link>
-      </div>
-    )
-
-  async function remove() {
-    if (!app) return
-    if (confirm(`Supprimer la candidature ${app.company} — ${app.title} ?`)) {
-      try { await deleteApplication(app.id); await navigate({ to: '/candidatures' }) }
-      catch { /* The shared persistence banner keeps the failure visible. */ }
-    }
-  }
-
-  return (
-    <div className="mx-auto max-w-3xl">
-      <Link
-        to="/candidatures"
-        className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"
-      >
-        <ArrowLeft size={15} /> Candidatures
-      </Link>
-
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            {app.company}
-            {app.url && (
-              <a href={app.url} target="_blank" rel="noreferrer" className="text-muted hover:text-indigo-700 dark:text-indigo-400">
-                <ExternalLink size={17} />
-              </a>
-            )}
-          </h1>
-          <p className="mt-0.5 text-muted">{app.title}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {app.register ? <StatusBadge status={app.status} application={app} /> : <select
-            aria-label="Statut de la candidature"
-            value={app.status}
-            onChange={(e) => void updateApplication(app.id, { status: e.target.value as Status }).catch(() => {})}
-            className="rounded-lg border border-line bg-subtle px-3 py-2 text-sm outline-none focus:border-indigo-500"
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>}
-          <button
-            aria-label="Modifier la candidature"
-            disabled={Boolean(app.register)}
-            onClick={() => setEditing(true)}
-            className="rounded-lg border border-line p-2.5 text-secondary hover:border-slate-500"
-          >
-            <Pencil size={15} />
-          </button>
-          <button
-            aria-label="Supprimer la candidature"
-            disabled={Boolean(app.register)}
-            onClick={remove}
-            className="rounded-lg border border-line p-2.5 text-secondary hover:border-rose-500/60 hover:text-rose-700 dark:text-rose-300"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      </div>
-
-      {app.register && <section className="app-panel mb-6 p-5 text-sm">
-        <h2 className="mb-2 font-semibold">Registre CSV — consultation uniquement</h2>
-        <p className="text-muted">Copie de {app.register.sourceName} · identifiant {app.register.externalId} · importée le {new Date(app.register.importedAt).toLocaleString('fr-FR')}. Modifie le CSV puis importe son aperçu pour actualiser ce dossier.</p>
-        <p className="mt-2 break-all text-xs text-muted">SHA-256 du fichier importé : {app.register.fileSha256}</p>
-        <details className="mt-3"><summary className="cursor-pointer">Cellules sources, vérifications et chemins CV / lettre</summary><dl className="mt-3 space-y-2 break-words">{Object.entries(app.register.raw).map(([key, value]) => <div key={key}><dt className="font-medium">{key}</dt><dd className="whitespace-pre-wrap text-muted">{value || '—'}</dd></div>)}</dl></details>
-      </section>}
-
-      {/* Parcours candidature : offre → analyse CV → lettre → candidature */}
-      <div className="mb-6 flex flex-wrap items-center gap-2 app-panel p-4 text-sm">
-        <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-muted">
-          Parcours
-        </span>
-        <Link
-          to="/cv"
-          search={{ app: app.id }}
-          className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-ink hover:border-indigo-500/60 hover:text-indigo-700 dark:text-indigo-300"
-        >
-          <Sparkles size={14} /> Analyser mon CV face à l'offre
-        </Link>
-        <ChevronRight size={14} className="text-muted" />
-        <Link
-          to="/lettre"
-          search={{ app: app.id }}
-          className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-ink hover:border-indigo-500/60 hover:text-indigo-700 dark:text-indigo-300"
-        >
-          <Mail size={14} /> Rédiger la lettre
-        </Link>
-        <ChevronRight size={14} className="text-muted" />
-        <span className="text-muted">{app.register ? 'Après un envoi réel, actualise le registre CSV.' : 'Postuler puis passer le statut à « Postulée »'}</span>
-        {!app.jobText && (
-          <span className="w-full pt-1 text-xs text-amber-700 dark:text-amber-400/90">
-            {app.register ? 'Colle le texte de l’offre directement dans l’analyse CV ou la lettre.' : 'Astuce : colle le texte de l’offre (bouton crayon) pour pré-remplir l’analyse et la lettre.'}
-          </span>
-        )}
-      </div>
-
-      <ApplicationTimeline key={app.id} application={app} />
-      <DocumentsPanel key={`documents-${app.id}`} application={app} />
-      <CvDocumentsPanel key={`cv-${app.id}`} applicationId={app.id} />
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <section className="flex flex-col gap-3 app-panel p-5">
-          <div className="mb-1 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Informations</h2>
-            <StatusBadge status={app.status} application={app} />
-          </div>
-          <Info icon={<CalendarDays size={14} />} label="Premier envoi documenté" value={fmt(firstSendDate(app))} />
-          <div className="flex items-center gap-2.5 text-sm">
-            <span className="text-muted">
-              <AlarmClock size={14} />
-            </span>
-            <span className="text-muted">Relance</span>
-            <span className={`ml-auto font-medium ${isDue(app) ? 'text-amber-700 dark:text-amber-400' : 'text-ink'}`}>
-              {fmt(app.nextActionAt)}
-              {isDue(app) && ' — due !'}
-            </span>
-          </div>
-          <Info icon={<MapPin size={14} />} label="Lieu" value={app.location} />
-          <Info icon={<Globe size={14} />} label="Source" value={app.source} />
-          <Info icon={<Banknote size={14} />} label="Salaire" value={app.salary} />
-          <Info icon={<User size={14} />} label="Contact" value={app.contact} />
-          {app.notes && (
-            <div className="mt-2 border-t border-line pt-3">
-              <div className="mb-1 text-xs font-medium text-muted">Notes</div>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-secondary">{app.notes}</p>
-            </div>
-          )}
-        </section>
-
-        <section className="app-panel p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-            <History size={14} className="text-muted" /> Historique
-          </h2>
-          <ol className="relative ml-2 border-l border-line pl-5">
-            {[...app.history].reverse().map((h, i) => (
-              <li key={i} className="relative mb-4 last:mb-0">
-                <span
-                  className={`absolute -left-[26.5px] top-1 h-2.5 w-2.5 rounded-full border-2 border-slate-900 ${
-                    i === 0 ? 'bg-indigo-400' : 'bg-slate-600'
-                  }`}
-                />
-                <div className="text-sm text-ink">{h.event}</div>
-                <div className="text-xs text-muted">
-                  {new Date(h.date).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      </div>
-
-      {editing && <ApplicationForm initial={app} onClose={() => setEditing(false)} />}
+  const {id}=useParams({strict:false}) as {id:string},search=useSearch({strict:false}) as {tab?:keyof typeof tabs}
+  const {applications,journey,actions}=useData(),navigate=useNavigate(),[tab,setTab]=useState<keyof typeof tabs>(search.tab ?? 'summary'),[editing,setEditing]=useState(false)
+  const app=applications.find(item=>item.id===id)
+  if(!app)return <div className="app-panel mx-auto max-w-3xl p-6">Candidature introuvable. <Link to="/candidatures" className="underline">Retour aux candidatures</Link></div>
+  const offer=journey.offers.find(item=>item.applicationId===app.id),qualifications=journey.qualifications.filter(item=>item.offerId===offer?.id).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),next=nextJourneyStep(app,journey,actions)
+  const localActions=actions.filter(item=>item.applicationId===app.id&&item.status==='todo')
+  async function remove(){if(!app||!confirm(`Supprimer ${app.company} — ${app.title} ? Les documents et leurs liens historiques seront conservés.`))return;try{await deleteApplication(app.id);await navigate({to:'/candidatures'})}catch{}}
+  return <div className="mx-auto max-w-5xl"><Link to="/candidatures" className="mb-5 inline-block text-sm underline">← Candidatures</Link>
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h1 className="break-words text-3xl font-semibold">{app.company}</h1><p className="mt-1 break-words text-muted">{app.title}</p></div><div className="flex flex-wrap items-center gap-2"><StatusBadge status={app.status} application={app}/>{!app.register&&<><button type="button" className="app-button" onClick={()=>setEditing(true)}>Modifier le dossier</button><button type="button" className="app-button" onClick={()=>void remove()}>Supprimer le dossier</button></>}</div></div>
+    {app.register&&<section className="app-panel mb-5 p-4 text-sm"><h2 className="font-semibold">Copie CSV en lecture seule</h2><p className="mt-1 text-muted">{app.register.sourceName} · importée le {new Date(app.register.importedAt).toLocaleString('fr-FR')}. Les documents et déclarations sont des données locales séparées. Cette copie n’est pas actualisée en direct.</p><details className="mt-3"><summary>Provenance et cellules sources</summary><p className="break-all text-xs">SHA-256 : {app.register.fileSha256}</p><dl className="mt-3 space-y-2 break-words">{Object.entries(app.register.raw).map(([key,value])=><div key={key}><dt className="font-medium">{key}</dt><dd className="whitespace-pre-wrap text-muted">{value||'—'}</dd></div>)}</dl></details></section>}
+    <section className="app-panel mb-6 flex flex-wrap items-center justify-between gap-4 p-5"><div><p className="text-xs font-semibold uppercase text-muted">Prochaine étape</p><h2 className="mt-1 font-semibold">{next.label}</h2><p className="mt-1 text-sm text-muted">{next.reason}</p></div>{next.actionId?<Link className="app-primary" to="/actions" search={{action:next.actionId}}>Ouvrir l’action</Link>:next.label==='Décider de la prochaine action'?<Link className="app-primary" to="/actions" search={{app:app.id}}>Préparer une action</Link>:<button type="button" className="app-primary" onClick={()=>{setTab(next.tab);document.getElementById('dossier-tabs')?.scrollIntoView({block:'start'})}}>{next.label}</button>}</section>
+    <div id="dossier-tabs" role="tablist" aria-label="Sections du dossier" className="mb-5 flex flex-wrap gap-2">{(Object.keys(tabs) as (keyof typeof tabs)[]).map((key,index)=><button key={key} id={`dossier-tab-${key}`} type="button" role="tab" aria-selected={tab===key} aria-controls={`dossier-panel-${key}`} tabIndex={tab===key?0:-1} className={tab===key?'app-primary':'app-button'} onClick={()=>setTab(key)} onKeyDown={event=>{const keys=Object.keys(tabs) as (keyof typeof tabs)[];let target;if(event.key==='ArrowRight')target=keys[(index+1)%keys.length];if(event.key==='ArrowLeft')target=keys[(index+keys.length-1)%keys.length];if(event.key==='Home')target=keys[0];if(event.key==='End')target=keys[keys.length-1];if(target){event.preventDefault();setTab(target);document.getElementById(`dossier-tab-${target}`)?.focus()}}}>{tabs[key]}</button>)}</div>
+    <div role="tabpanel" id="dossier-panel-summary" aria-labelledby="dossier-tab-summary" hidden={tab!=='summary'}><section className="app-panel p-5"><h2 className="mb-4 text-lg font-semibold">Synthèse</h2><dl className="grid gap-4 sm:grid-cols-2">{[['Décision',offer?DECISION_LABELS[offer.decision]:'Décision d’origine inconnue'],['Premier envoi daté',fmt(firstSendDate(withDeclaredSends(app,journey.submissions)))],['Échéance source',fmt(app.nextActionAt)],['Lieu',app.location||'Inconnu'],['Source',app.source||'Inconnue'],['Salaire',app.salary||'Inconnu'],['Contact',app.contact||'Inconnu']].map(([label,value])=><div key={label}><dt className="text-xs text-muted">{label}</dt><dd className="mt-1 break-words font-medium">{value}</dd></div>)}</dl>{app.url&&<a className="mt-4 inline-block underline" href={app.url} target="_blank" rel="noreferrer">Ouvrir le lien conservé</a>}{app.notes&&<p className="mt-4 whitespace-pre-wrap text-sm">{app.notes}</p>}{!app.register&&<label className="mt-4 block text-sm">Statut courant — ne prouve aucune étape<select aria-label="Statut de la candidature" className="app-field mt-1" value={app.status} onChange={event=>void updateApplication(app.id,{status:event.target.value as Status}).catch(()=>{})}>{STATUSES.map(status=><option value={status} key={status}>{STATUS_LABELS[status]}</option>)}</select></label>}</section>
+      <section className="app-panel mt-5 p-5"><h2 className="mb-3 font-semibold">Actions liées</h2>{!localActions.length&&<p className="text-sm text-muted">Aucune action locale ouverte. Décide explicitement de la suite.</p>}<ul className="space-y-3">{localActions.map(action=><li key={action.id}><Link className="underline" to="/actions" search={{action:action.id}}>{action.title}</Link><p className="text-xs text-muted">{action.dueDate?fmt(action.dueDate):'Sans échéance'}</p></li>)}</ul><Link className="app-button mt-4 inline-block" to="/actions" search={{app:app.id}}>Préparer une action liée</Link></section>
+      <SubmissionPanel key={`submission-${app.id}`} applicationId={app.id}/>
     </div>
-  )
+    <div role="tabpanel" id="dossier-panel-offer" aria-labelledby="dossier-tab-offer" hidden={tab!=='offer'}><section className="app-panel p-5"><h2 className="mb-3 text-lg font-semibold">Offre et qualification</h2><p className="mb-4 whitespace-pre-wrap break-words text-sm">{offer?.text??app.jobText??'Contenu de l’offre non renseigné.'}</p>{offer?<><p>Décision : {DECISION_LABELS[offer.decision]}</p><Link className="app-button mt-3 inline-block" to="/offres" search={{offer:offer.id}}>Reprendre la qualification et la décision</Link><ol className="mt-5 space-y-3">{offer.decisions.map((item,index)=><li key={index} className="text-sm">{new Date(item.at).toLocaleString('fr-FR')} — {DECISION_LABELS[item.decision]} · {item.reason||'Motif non renseigné'}</li>)}</ol></>:<p className="text-sm text-muted">Dossier antérieur à la collecte d’offres : décision et qualification d’origine inconnues.</p>}
+      {qualifications.map(item=><details className="mt-5 border-t border-line pt-3" key={item.id}><summary>Qualification du {new Date(item.createdAt).toLocaleString('fr-FR')}{item.analysis?.score!=null?` · note indicative ${item.analysis.score}/100`:''}</summary>{item.offerText!==offer?.text&&<p className="text-amber-700">Cette qualification porte sur une version antérieure de l’offre.</p>}<ul className="my-3 text-sm">{item.entries.map(entry=><li key={entry.criterionId}>{entry.label} — {RESULT_LABELS[entry.result]} · {entry.justification||'Sans justification'} · {entry.importance==='required'?'obligatoire':'préférentiel'} · manuel</li>)}</ul>{item.analysis&&<p className="whitespace-pre-wrap text-sm">{item.analysis.mode==='api'?`API · modèle demandé ${item.analysis.model}`:'Analyse renseignée manuellement'}{'\n'}{item.analysis.text}</p>}<details className="mt-3"><summary>Sources de la qualification</summary><p className="text-xs">Version CV : {item.cvVersionId??'Texte du profil non structuré'}</p><pre className="whitespace-pre-wrap break-words text-xs">{item.offerText}{'\n\n'}{item.cvText}</pre></details></details>)}<Link className="app-button mt-5 inline-block" to="/cv" search={{app:app.id}}>Analyser une version de CV</Link></section></div>
+    <div role="tabpanel" id="dossier-panel-documents" aria-labelledby="dossier-tab-documents" hidden={tab!=='documents'}><CvDocumentsPanel key={`cv-${app.id}`} applicationId={app.id}/><DocumentsPanel key={`letters-${app.id}`} application={app}/></div>
+    <div role="tabpanel" id="dossier-panel-history" aria-labelledby="dossier-tab-history" hidden={tab!=='history'}><ApplicationTimeline key={app.id} application={app}/><section className="app-panel p-5"><h2 className="mb-4 font-semibold">Historique du dossier</h2><ol className="space-y-3">{[...app.history].reverse().map((entry,index)=><li key={index}><p className="text-sm">{entry.event}</p><p className="text-xs text-muted">{new Date(entry.date).toLocaleString('fr-FR')}</p></li>)}</ol><h3 className="mt-5 font-semibold">Déclarations d’envoi conservées</h3><ul className="mt-2 space-y-2">{journey.submissions.filter(item=>item.applicationId===app.id).map(item=><li className="text-sm" key={item.id}>Envoi du {fmt(item.occurredAt)}{item.cancelledAt ? ' · ANNULÉE (erreur de saisie)' : ''} · déclaration humaine du {new Date(item.createdAt).toLocaleString('fr-FR')} · <button className="underline" onClick={()=>setTab('summary')}>Voir les versions déclarées</button></li>)}</ul></section></div>
+    {editing&&<ApplicationForm initial={app} onClose={()=>setEditing(false)}/>}</div>
 }
