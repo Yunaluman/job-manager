@@ -8,6 +8,7 @@ import { AiBudgetBanner } from './AiBudgetBanner'
 
 const destinations = [
   { to: '/', label: 'Vue d’ensemble', icon: LayoutDashboard },
+  { to: '/offres', label: 'Offres', icon: Briefcase },
   { to: '/actions', label: 'Actions', icon: ListTodo },
   { to: '/candidatures', label: 'Candidatures', icon: KanbanSquare },
   { to: '/cv', label: 'Analyse du CV', icon: FileText },
