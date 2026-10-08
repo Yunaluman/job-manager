@@ -15,6 +15,7 @@ import { CvPage } from './pages/CvPage'
 import { LetterPage } from './pages/LetterPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { AiActivityPage } from './pages/AiActivityPage'
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -61,6 +62,7 @@ const profileRoute = createRoute({
 })
 
 const routeTree = rootRoute.addChildren([
+  createRoute({ getParentRoute: () => rootRoute, path: '/activite-ia', component: AiActivityPage }),
   dashboardRoute,
   applicationsRoute,
   applicationDetailRoute,

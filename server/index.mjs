@@ -40,7 +40,7 @@ try {
   })
   db = new Database(join(dataDir, 'jobpilot.db'))
   db.pragma('journal_mode = WAL')
-  const { app, token, acceptsHostAndOrigin } = createApp({ db, protector: createWindowsProtector(), port, development })
+  const { app, token, acceptsHostAndOrigin } = createApp({ db, protector: createWindowsProtector(), port, development, backupDirectory: join(dataDir, 'backups') })
   server.prependListener('upgrade', (req, socket) => {
     if (!acceptsHostAndOrigin(req.headers)) socket.destroy()
   })
