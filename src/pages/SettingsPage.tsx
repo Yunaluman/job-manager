@@ -49,25 +49,25 @@ function triggerImport() {
 }
 
 const btnClass =
-  'flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:border-slate-500'
+  'app-button'
 
 export function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight">
-        <SettingsIcon size={22} className="text-indigo-400" /> Paramètres
+      <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <SettingsIcon size={22} className="text-indigo-700 dark:text-indigo-400" /> Paramètres
       </h1>
-      <p className="mb-8 text-sm text-slate-400">
+      <p className="mb-8 text-sm text-muted">
         Réglages de l'application : fournisseur IA et données. Ton identité et ton CV sont dans{' '}
-        <span className="text-slate-300">Mon profil</span>.
+        <span className="text-secondary">Mon profil</span>.
       </p>
 
       <div className="flex flex-col gap-6">
         <ProviderPicker withKeys />
 
-        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+        <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Database size={15} className="text-slate-400" /> Mes données
+            <Database size={15} className="text-muted" /> Mes données
           </div>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => void backupDatabase()} className={btnClass}><Database size={15} /> Sauvegarder la base chiffrée</button>
@@ -81,7 +81,7 @@ export function SettingsPage() {
               <Upload size={15} /> Importer un JSON
             </button>
           </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+          <p className="mt-3 text-[11px] leading-relaxed text-muted">
             Tout est stocké localement dans une base SQLite
             (%LOCALAPPDATA%\JobPilot\jobpilot.db). L'export JSON complet contient candidatures, analyses, CV et profil ;
             l'Excel sert à consulter/partager. Ces exports ne contiennent pas les clés API.

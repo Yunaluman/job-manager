@@ -1,18 +1,46 @@
 @import 'tailwindcss';
-
-@theme {
-  --font-sans: 'Inter', system-ui, sans-serif;
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@theme inline {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: var(--app-canvas);
+  --color-surface: var(--app-surface);
+  --color-subtle: var(--app-subtle);
+  --color-field: var(--app-field);
+  --color-line: var(--app-line);
+  --color-ink: var(--app-ink);
+  --color-secondary: var(--app-secondary);
+  --color-muted: var(--app-muted);
 }
-
-body {
-  @apply bg-slate-950 text-slate-100 antialiased;
+:root {
+  --app-canvas: #f3f5fa; --app-surface: #fff; --app-subtle: #eef2f8;
+  --app-field: #f8fafc; --app-line: #d5deeb; --app-ink: #17243b;
+  --app-secondary: #33455f; --app-muted: #52627a;
 }
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+[data-theme=dark] {
+  --app-canvas: #0b1120; --app-surface: #121c2e; --app-subtle: #1a2740;
+  --app-field: #0e1829; --app-line: #30415c; --app-ink: #f0f4fc;
+  --app-secondary: #c5d2e6; --app-muted: #a2b3cb;
 }
-::-webkit-scrollbar-thumb {
-  background: theme(--color-slate-700);
-  border-radius: 4px;
+@layer base {
+  body { @apply m-0 bg-canvas text-ink antialiased; }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), select { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  :focus-visible { outline: 2px solid #6366f1; outline-offset: 3px; }
+  textarea { resize: vertical; }
+  h1 { text-wrap: balance; }
+  td, th { vertical-align: middle; }
+  ::selection { background: #6366f133; }
+}
+@layer components {
+  .app-panel { @apply rounded-2xl border border-line bg-surface shadow-sm; }
+  .app-field { @apply w-full rounded-xl border border-line bg-field px-3 py-2.5 text-sm text-ink outline-none placeholder:text-muted focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15; }
+  .app-button { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-sm font-medium text-secondary hover:bg-subtle disabled:opacity-50; }
+  .app-primary { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50; }
+  .app-modal { @apply max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-2xl border border-line bg-surface p-4 shadow-2xl sm:p-6; }
+}
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-thumb { background: var(--app-line); border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

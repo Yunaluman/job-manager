@@ -5,11 +5,11 @@ import { extractTextFromFile } from '../extract'
 import { DraftGuard } from '../components/DraftGuard'
 
 const inputClass =
-  'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
+  'app-field'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1.5 text-xs font-medium text-slate-400">
+    <label className="flex flex-col gap-1.5 text-xs font-medium text-muted">
       {label}
       {children}
     </label>
@@ -74,21 +74,21 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl">
       <DraftGuard dirty={dirty} />
-      <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight">
-        <User size={22} className="text-indigo-400" /> Mon profil
+      <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <User size={22} className="text-indigo-700 dark:text-indigo-400" /> Mon profil
       </h1>
-      <p className="mb-8 text-sm text-slate-400">
+      <p className="mb-8 text-sm text-muted">
         Ton identité et ton CV — la matière première des analyses et des lettres. Enregistre les modifications avant de quitter cette page.
       </p>
 
       <div className="flex flex-col gap-6">
-        <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-500 px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer le profil et le CV'}</button>
-        {fileError && <p role="alert" className="text-sm text-rose-400">{fileError}</p>}
-        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+        <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer le profil et le CV'}</button>
+        {fileError && <p role="alert" className="text-sm text-rose-700 dark:text-rose-400">{fileError}</p>}
+        <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
-            <User size={15} className="text-slate-400" /> Identité
+            <User size={15} className="text-muted" /> Identité
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Nom complet">
               <input className={inputClass} value={settings.profileName} onChange={set('profileName')} placeholder="Prénom NOM" />
             </Field>
@@ -105,15 +105,15 @@ export function ProfilePage() {
               <input className={inputClass} value={settings.profileCity} onChange={set('profileCity')} placeholder="94230 Cachan" />
             </Field>
           </div>
-          <p className="mt-3 text-[11px] text-slate-500">
+          <p className="mt-3 text-[11px] text-muted">
             Utilisé pour l'en-tête des lettres de motivation (coordonnées, date, objet) — comme sur
             une vraie lettre.
           </p>
         </section>
 
-        <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+        <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <FileUp size={15} className="text-slate-400" /> Mon CV
+            <FileUp size={15} className="text-muted" /> Mon CV
           </div>
           <button
             type="button"
@@ -130,8 +130,8 @@ export function ProfilePage() {
             }}
             className={`mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm transition-colors ${
               dragOver
-                ? 'border-indigo-400 bg-indigo-500/10 text-indigo-300'
-                : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                ? 'border-indigo-400 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300'
+                : 'border-line text-muted hover:border-slate-500 hover:text-ink'
             }`}
           >
             {extracting ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
@@ -139,7 +139,7 @@ export function ProfilePage() {
               ? 'Extraction du texte…'
               : 'Déposer mon CV (PDF, DOCX, TXT) — traité localement, jamais envoyé'}
           </button>
-          {fileError && <p className="mb-2 text-sm text-rose-400">{fileError}</p>}
+          {fileError && <p className="mb-2 text-sm text-rose-700 dark:text-rose-400">{fileError}</p>}
           <textarea
             className={inputClass}
             rows={8}
@@ -147,7 +147,7 @@ export function ProfilePage() {
             onChange={(e) => setDraft((previous) => ({ ...previous, cvText: e.target.value }))}
             placeholder="…ou colle ici le contenu texte de ton CV"
           />
-          <p className="mt-2 text-[11px] text-slate-500">
+          <p className="mt-2 text-[11px] text-muted">
             Ce CV alimente l'analyse (page Amélioration CV) et les lettres de motivation.
           </p>
         </section>
