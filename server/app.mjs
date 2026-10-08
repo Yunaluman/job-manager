@@ -4,12 +4,15 @@ import { createCredentialStore, assertDatabaseIntegrity, PUBLIC_FIELDS, PROVIDER
 import { createWriteCoordinator } from './writes.mjs'
 import { exportSnapshot } from './snapshots.mjs'
 import { createEncryptedBackup } from './backups.mjs'
+import { createMonitoring, initializeMonitoring, PURPOSES } from './ai-monitoring.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
+  db.pragma('synchronous = FULL')
   db.exec(`CREATE TABLE IF NOT EXISTS applications (id TEXT PRIMARY KEY, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS analyses (id TEXT PRIMARY KEY, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);`)
+  initializeMonitoring(db)
 }
 export function createApp({ db, protector, port, development = false, fetchProvider = fetch, backupDirectory }) {
   assertDatabaseIntegrity(db)
@@ -17,6 +20,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   const credentials = createCredentialStore(db, protector)
   credentials.migrate()
   const writes = createWriteCoordinator(db)
+  const monitoring = createMonitoring(db)
   function confirmWrite(req, res, mutate) {
     const supplied = req.get('X-JobPilot-Revision')
     const expectedRevision = supplied && /^(0|[1-9]\d*)$/.test(supplied) ? Number(supplied) : NaN
@@ -64,6 +68,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
       applications: db.prepare('SELECT data FROM applications').all().map((row) => JSON.parse(row.data)),
       analyses: db.prepare('SELECT data FROM analyses').all().map((row) => JSON.parse(row.data)),
       settings: credentials.settings(),
+      aiConfig: monitoring.config(),
     }))()
     res.json(state)
   })
@@ -110,26 +115,55 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     confirmWrite(req, res, () => { credentials.remove(req.params.provider); return credentials.settings() })
   })
   let inFlight = false
+  app.get('/api/ai/activity', (req, res) => res.json(monitoring.history(req.query)))
+  app.get('/api/ai/summary', (req, res) => res.json(monitoring.aggregate(req.query)))
+  app.get('/api/ai/budget', (_req, res) => res.json(monitoring.budget()))
+  app.get('/api/ai/config', (_req, res) => res.json(monitoring.config()))
+  app.put('/api/ai/config', (req, res) => confirmWrite(req, res, () => monitoring.setBudget(req.body)))
+  app.post('/api/ai/tariffs', (req, res) => confirmWrite(req, res, () => monitoring.addTariff(req.body)))
   app.post('/api/ai', async (req, res) => {
-    const { prompt, baseUrl, model, maxTokens = 1600, temperature = 0.3 } = req.body ?? {}
+    const { prompt, baseUrl, model, purpose, maxTokens = 1600, temperature = 0.3 } = req.body ?? {}
     const provider = providerForUrl(baseUrl)
-    if (!provider || typeof prompt !== 'string' || !prompt.trim() || prompt.length > 30000 || typeof model !== 'string' || !/^[\w./:-]{1,120}$/.test(model) || !Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 2000 || ![0, 0.3].includes(temperature) || Object.keys(req.body).some((key) => !['prompt', 'baseUrl', 'model', 'maxTokens', 'temperature'].includes(key))) return res.status(400).json({ error: 'Requête IA invalide.' })
+    if (!provider || !PURPOSES.includes(purpose) || typeof prompt !== 'string' || !prompt.trim() || prompt.length > 30000 || typeof model !== 'string' || !/^[\w./:-]{1,120}$/.test(model) || !Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 2000 || ![0, 0.3].includes(temperature) || Object.keys(req.body).some((key) => !['prompt', 'baseUrl', 'model', 'purpose', 'maxTokens', 'temperature'].includes(key))) return res.status(400).json({ error: 'Requête IA invalide.' })
     if (inFlight) return res.status(429).json({ error: 'Un appel IA est déjà en cours.' })
     const key = credentials.get(provider)
     if (!key) return res.status(400).json({ error: 'Aucune clé pour ce fournisseur.' })
+    if (model.includes(key)) return res.status(400).json({ error: 'Modèle invalide.' })
+    // Refuse dispatch if the durable attempt cannot be committed and read back.
+    let attempt
+    try { attempt = monitoring.begin({ purpose, provider, model }) }
+    catch { return res.status(503).json({ error: 'Journal IA indisponible. Aucun appel fournisseur envoyé.' }) }
     inFlight = true
+    let outcome = { status: 'uncertain', errorKind: 'transport' }, reply = { error: 'Appel fournisseur interrompu ou indisponible.' }, httpStatus = 502
     try {
       const result = await fetchProvider(`${PROVIDERS[provider]}/chat/completions`, {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000),
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature, max_tokens: maxTokens }),
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature, max_tokens: maxTokens, ...(provider === 'mistral' ? { service_tier: 'standard_only' } : {}) }),
       })
-      if (!result.ok) return res.status(502).json({ error: result.status === 401 ? 'Clé API invalide ou expirée.' : `Le fournisseur a refusé la requête (${result.status}).` })
-      const content = (await result.json()).choices?.[0]?.message?.content
-      if (typeof content !== 'string' || content.length > 100000 || content.includes(key)) return res.status(502).json({ error: 'Réponse du fournisseur invalide.' })
-      res.json({ content })
-    } catch { res.status(502).json({ error: 'Appel fournisseur interrompu ou indisponible.' }) }
-    finally { inFlight = false }
+      if (!result.ok) {
+        const response = await result.json().catch(() => undefined)
+        outcome = { status: 'error', errorKind: 'provider', response }
+        reply = { error: result.status === 401 ? 'Clé API invalide ou expirée.' : `Le fournisseur a refusé la requête (${result.status}).` }
+      } else {
+        const response = await result.json()
+        const content = response?.choices?.[0]?.message?.content
+        if (typeof content !== 'string' || content.length > 100000 || content.includes(key)) {
+          outcome = { status: 'error', errorKind: 'response', response }
+          reply = { error: 'Réponse du fournisseur invalide.' }
+        } else { outcome = { status: 'success', response }; reply = { content }; httpStatus = 200 }
+      }
+    } catch (error) {
+      outcome = error instanceof SyntaxError ? { status: 'error', errorKind: 'response' } : { status: 'uncertain', errorKind: ['TimeoutError', 'AbortError'].includes(error?.name) ? 'timeout' : 'transport' }
+    } finally {
+      try { monitoring.finish(attempt, { ...outcome, secret: key }) }
+      catch {
+        // Keep the original pending row: never retry a paid call on a logging error.
+        reply = { ...reply, monitoringWarning: 'Résultat du journal non confirmé ; coût inconnu. Ne relance pas cet appel pour cette raison.' }
+      }
+      inFlight = false
+    }
+    res.status(httpStatus).json(reply)
   })
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Route inconnue.' }))
   app.use((err, _req, res, _next) => {
