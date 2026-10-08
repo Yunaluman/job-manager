@@ -7,6 +7,7 @@ import { createEncryptedBackup } from './backups.mjs'
 import { createMonitoring, initializeMonitoring, PURPOSES } from './ai-monitoring.mjs'
 import { validateApplicationEvents } from '../src/application-events.mjs'
 import { previewRegister, reconcileRegister, validateRegisterProjection } from './register-csv.mjs'
+import { initializeActions, planningSnapshot, registerActionRoutes } from './actions.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -15,6 +16,7 @@ export function initializeDatabase(db) {
     CREATE TABLE IF NOT EXISTS analyses (id TEXT PRIMARY KEY, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);`)
   initializeMonitoring(db)
+  initializeActions(db)
 }
 export function createApp({ db, protector, port, development = false, fetchProvider = fetch, backupDirectory }) {
   assertDatabaseIntegrity(db)
@@ -57,6 +59,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   // Same bootstrap capability as the HTML page, guarded by Host/Origin above.
   app.get('/local-session', (_req, res) => res.json({ token }))
   app.use('/api', express.json({ limit: '10mb' }))
+  registerActionRoutes(app, db, confirmWrite)
   app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
   let backupRunning = false
   app.post('/api/backups', async (_req, res, next) => {
@@ -70,6 +73,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   app.get('/api/state', (_req, res) => {
     const state = db.transaction(() => ({
       revision: writes.revision(),
+      ...planningSnapshot(db),
       applications: db.prepare('SELECT data FROM applications').all().map((row) => JSON.parse(row.data)),
       analyses: db.prepare('SELECT data FROM analyses').all().map((row) => JSON.parse(row.data)),
       settings: credentials.settings(),
