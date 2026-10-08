@@ -23,6 +23,7 @@ import { parseOffer } from '../parse'
 import { StatusBadge } from '../components/StatusBadge'
 import { ApplicationForm } from '../components/ApplicationForm'
 import { useModalFocus } from '../useModalFocus'
+import { firstSendDate } from '../application-events.mjs'
 
 type View = 'table' | 'kanban'
 
@@ -254,7 +255,9 @@ function TableView({
         const cmp =
           sortKey === 'status'
             ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
-            : (a[sortKey] ?? '').localeCompare(b[sortKey] ?? '', 'fr')
+            : sortKey === 'appliedAt'
+              ? (firstSendDate(a) ?? '').localeCompare(firstSendDate(b) ?? '')
+              : (a[sortKey] ?? '').localeCompare(b[sortKey] ?? '', 'fr')
         return sortAsc ? cmp : -cmp
       })
     : apps
@@ -321,7 +324,7 @@ function TableView({
               <td className="px-4 py-3">
                 <StatusBadge status={a.status} />
               </td>
-              <td className="px-4 py-3 text-muted">{fmt(a.appliedAt)}</td>
+              <td className="px-4 py-3 text-muted">{fmt(firstSendDate(a))}</td>
               <td className="px-4 py-3">
                 <span className={`flex items-center gap-1.5 ${isDue(a) ? 'text-amber-700 dark:text-amber-400' : 'text-muted'}`}>
                   {isDue(a) && <AlarmClock size={13} />}

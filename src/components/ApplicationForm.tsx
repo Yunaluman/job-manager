@@ -4,6 +4,7 @@ import type { Application, Status } from '../types'
 import { STATUSES, STATUS_LABELS } from '../types'
 import { addApplication, updateApplication } from '../storage'
 import { useModalFocus } from '../useModalFocus'
+import { firstSendDate } from '../application-events.mjs'
 
 interface Props {
   initial?: Application
@@ -48,7 +49,7 @@ export function ApplicationForm({ initial, defaults, onClose }: Props) {
     salary: initial?.salary ?? defaults?.salary ?? '',
     status: initial?.status ?? defaults?.status ?? ('postulee' as Status),
     jobText: initial?.jobText ?? defaults?.jobText ?? '',
-    appliedAt: initial?.appliedAt?.slice(0, 10) ?? today,
+    appliedAt: initial ? firstSendDate(initial) ?? '' : '',
     nextActionAt: initial?.nextActionAt?.slice(0, 10) ?? addDays(today, RELANCE_DAYS),
     notes: initial?.notes ?? '',
   })
@@ -121,7 +122,8 @@ export function ApplicationForm({ initial, defaults, onClose }: Props) {
             <input className={inputClass} value={form.source} onChange={set('source')} />
           </Field>
           <Field label="Date de candidature">
-            <input type="date" className={inputClass} value={form.appliedAt} onChange={set('appliedAt')} />
+            <input type="date" className={inputClass} value={form.appliedAt} onChange={set('appliedAt')} disabled={initial?.events?.some((event) => event.kind === 'sent')} />
+            {initial?.events?.some((event) => event.kind === 'sent') && <span>Modifie les dates dans « Étapes documentées ».</span>}
           </Field>
           <Field label={relanceDirty ? 'Prochaine action / relance' : 'Relance (proposée à J+7)'}>
             <input type="date" className={inputClass} value={form.nextActionAt} onChange={set('nextActionAt')} />

@@ -3,15 +3,51 @@ import type { Application, Status } from './types'
 import { STATUS_LABELS } from './types'
 import { dataStore, useData } from './data'
 import { apiGet } from './api'
+import { applicationEvents, validEventDate, firstSendDate } from './application-events.mjs'
+import type { ApplicationEvent } from './types'
 
 export function useApplications(): Application[] { return useData().applications }
 
 export async function addApplication(data: Omit<Application, 'id' | 'history' | 'createdAt' | 'updatedAt'>): Promise<Application> {
   const now = new Date().toISOString()
-  const app: Application = { ...data, id: crypto.randomUUID(),
+  const events = data.events ?? (validEventDate(data.appliedAt) ? [{ id: crypto.randomUUID(), kind: 'sent' as const, occurredAt: data.appliedAt!, source: 'manual' as const }] : [])
+  const app: Application = { ...data, events, eventHistoryComplete: data.eventHistoryComplete ?? false, id: crypto.randomUUID(),
     history: [{ date: now, event: `Créée — statut ${STATUS_LABELS[data.status]}` }], createdAt: now, updatedAt: now }
   return dataStore.mutate<Application>(() => ({ method: 'PUT', path: `applications/${app.id}`, body: app,
     apply: (state, saved) => ({ ...state, applications: [saved, ...state.applications] }) }))
+}
+
+export async function recordApplicationEvent(id: string, kind: ApplicationEvent['kind'], occurredAt: string, eventId?: string) {
+  if (!validEventDate(occurredAt)) throw new Error('Date invalide.')
+  return dataStore.mutate<Application>((state) => {
+    const current = state.applications.find((app) => app.id === id)
+    if (!current) throw new Error('Candidature introuvable.')
+    const events = applicationEvents(current)
+    const old = eventId ? events.find((event) => event.id === eventId) : undefined
+    if (eventId && !old) throw new Error('Étape introuvable. Synchronise les données.')
+    const replacement = { id: eventId ?? crypto.randomUUID(), kind, occurredAt, source: 'manual' as const }
+    const next = { ...current, updatedAt: new Date().toISOString(),
+      ...(old?.kind === 'sent' ? { appliedAt: undefined } : {}),
+      events: eventId ? events.map((event) => event.id === eventId ? replacement : event) : [...events, replacement],
+      history: [...current.history, { date: new Date().toISOString(), event: `${eventId ? 'Étape corrigée' : 'Étape enregistrée'} : ${kind} (${occurredAt})` }] }
+    return { method: 'PUT', path: `applications/${id}`, body: next,
+      apply: (previous, saved) => ({ ...previous, applications: previous.applications.map((app) => app.id === id ? saved : app) }) }
+  })
+}
+
+export async function removeApplicationEvent(id: string, eventId: string) {
+  return dataStore.mutate<Application>((state) => {
+    const current = state.applications.find((app) => app.id === id)
+    if (!current) throw new Error('Candidature introuvable.')
+    const events = applicationEvents(current)
+    const removed = events.find((event) => event.id === eventId)
+    if (!removed) throw new Error('Étape introuvable. Synchronise les données.')
+    const next = { ...current, events: events.filter((event) => event.id !== eventId),
+      ...(removed.kind === 'sent' ? { appliedAt: undefined } : {}), updatedAt: new Date().toISOString(),
+      history: [...current.history, { date: new Date().toISOString(), event: `Étape supprimée : ${removed.kind} (${removed.occurredAt})` }] }
+    return { method: 'PUT', path: `applications/${id}`, body: next,
+      apply: (previous, saved) => ({ ...previous, applications: previous.applications.map((app) => app.id === id ? saved : app) }) }
+  })
 }
 
 export async function updateApplication(id: string, patch: Partial<Application>) {
@@ -53,7 +89,7 @@ export async function exportExcel() {
     { value: a.company },
     { value: a.title },
     { value: STATUS_LABELS[a.status] },
-    a.appliedAt ? { value: new Date(a.appliedAt), format: 'dd/mm/yyyy' } : { value: '' },
+    firstSendDate(a) ? { value: new Date(`${firstSendDate(a)}T12:00:00`), format: 'dd/mm/yyyy' } : { value: '' },
     a.nextActionAt ? { value: new Date(a.nextActionAt), format: 'dd/mm/yyyy' } : { value: '' },
     { value: a.location ?? '' },
     { value: a.source ?? '' },

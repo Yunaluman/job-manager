@@ -5,6 +5,7 @@ import { createWriteCoordinator } from './writes.mjs'
 import { exportSnapshot } from './snapshots.mjs'
 import { createEncryptedBackup } from './backups.mjs'
 import { createMonitoring, initializeMonitoring, PURPOSES } from './ai-monitoring.mjs'
+import { validateApplicationEvents } from '../src/application-events.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -73,11 +74,21 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     res.json(state)
   })
   for (const table of ['applications', 'analyses']) {
+    const validateLink = (item) => {
+      if (table !== 'analyses' || item.applicationId === undefined) return
+      if (typeof item.applicationId !== 'string' || !item.applicationId || item.applicationId.length > 200) throw Object.assign(new Error('Lien de candidature invalide.'), { status: 400 })
+      if (db.prepare('SELECT id FROM applications WHERE id = ?').get(item.applicationId)) return
+      const previous = db.prepare('SELECT data FROM analyses WHERE id = ?').get(item.id)
+      // Keep historical links after a candidature is deleted, without allowing new orphan links.
+      if (previous && JSON.parse(previous.data).applicationId === item.applicationId) return
+      throw Object.assign(new Error('Candidature liée introuvable. Synchronise les données.'), { status: 400 })
+    }
     const upsert = db.prepare(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`)
     app.get(`/api/${table}`, (_req, res) => res.json(db.prepare(`SELECT data FROM ${table}`).all().map((row) => JSON.parse(row.data))))
     app.put(`/api/${table}/:id`, (req, res) => {
       if (!req.body || Array.isArray(req.body) || req.body.id !== req.params.id) return res.status(400).json({ error: 'Identifiant invalide.' })
-      confirmWrite(req, res, () => { upsert.run(req.params.id, JSON.stringify(req.body)); return req.body })
+      if (table === 'applications') validateApplicationEvents(req.body)
+      confirmWrite(req, res, () => { validateLink(req.body); upsert.run(req.params.id, JSON.stringify(req.body)); return req.body })
     })
     app.delete(`/api/${table}/:id`, (req, res) => {
       confirmWrite(req, res, () => { db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(req.params.id); return { id: req.params.id } })
@@ -85,7 +96,9 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     app.put(`/api/${table}`, (req, res) => {
       if (!Array.isArray(req.body) || req.body.some((item) => !item || typeof item.id !== 'string' || !item.id)) return res.status(400).json({ error: 'Liste invalide.' })
       if (new Set(req.body.map((item) => item.id)).size !== req.body.length) return res.status(400).json({ error: 'Identifiants dupliqués.' })
+      if (table === 'applications') req.body.forEach(validateApplicationEvents)
       confirmWrite(req, res, () => {
+        req.body.forEach(validateLink)
         db.prepare(`DELETE FROM ${table}`).run()
         for (const item of req.body) upsert.run(item.id, JSON.stringify(item))
         return req.body

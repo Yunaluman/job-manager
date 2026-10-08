@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { AlertCircle, TrendingUp, Send, MessageSquare, XCircle, Trophy, Globe } from 'lucide-react'
 import type { Application } from '../types'
 import { useApplications, isDue } from '../storage'
+import { funnelMetrics, applicationEvents } from '../application-events.mjs'
 import { StatusBadge } from '../components/StatusBadge'
 
 function StatCard({
@@ -25,23 +26,23 @@ function StatCard({
 }
 
 function SourceStats({ apps }: { apps: Application[] }) {
-  // On ne compte que les candidatures réellement envoyées
-  const sent = apps.filter((a) => a.status !== 'a_postuler')
+  // Group documented milestones; rates only use applications with dated sends.
+  const documented = apps.filter((a) => applicationEvents(a).length > 0)
   const bySource = new Map<string, Application[]>()
-  for (const a of sent) {
+  for (const a of documented) {
     const key = a.source?.trim() || 'Autre'
     bySource.set(key, [...(bySource.get(key) ?? []), a])
   }
   const rows = [...bySource.entries()]
     .map(([source, list]) => {
-      const entretiens = list.filter((a) => a.status === 'entretien' || a.status === 'offre').length
-      const reponses = entretiens + list.filter((a) => a.status === 'refusee').length
+      const metrics = funnelMetrics(list)
+      const entretiens = metrics.interviews
       return {
         source,
-        envoyees: list.length,
+        envoyees: metrics.sent,
         entretiens,
-        tauxReponse: Math.round((reponses / list.length) * 100),
-        tauxEntretien: Math.round((entretiens / list.length) * 100),
+        tauxReponse: metrics.responseRate,
+        tauxEntretien: metrics.interviewRate,
       }
     })
     .sort((a, b) => b.envoyees - a.envoyees)
@@ -96,11 +97,7 @@ function SourceStats({ apps }: { apps: Application[] }) {
 export function Dashboard() {
   const apps = useApplications()
   const due = apps.filter(isDue)
-  const active = apps.filter((a) => a.status !== 'refusee' && a.status !== 'a_postuler')
-  const entretiens = apps.filter((a) => a.status === 'entretien' || a.status === 'offre')
-  const tauxReponse = active.length
-    ? Math.round((entretiens.length / active.length) * 100)
-    : 0
+  const metrics = funnelMetrics(apps)
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -108,11 +105,11 @@ export function Dashboard() {
       <p className="mb-8 text-sm text-muted">Vue d'ensemble de ta recherche d'emploi.</p>
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard icon={<Send size={18} />} label="Candidatures envoyées" value={active.length} accent="bg-sky-500/15 text-sky-700 dark:text-sky-300" />
-        <StatCard icon={<MessageSquare size={18} />} label="Entretiens" value={apps.filter((a) => a.status === 'entretien').length} accent="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
-        <StatCard icon={<Trophy size={18} />} label="Offres" value={apps.filter((a) => a.status === 'offre').length} accent="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" />
-        <StatCard icon={<XCircle size={18} />} label="Refus" value={apps.filter((a) => a.status === 'refusee').length} accent="bg-rose-500/15 text-rose-700 dark:text-rose-300" />
-        <StatCard icon={<TrendingUp size={18} />} label="Taux entretien (%)" value={tauxReponse} accent="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" />
+        <StatCard icon={<Send size={18} />} label="Envois datés" value={metrics.sent} accent="bg-sky-500/15 text-sky-700 dark:text-sky-300" />
+        <StatCard icon={<MessageSquare size={18} />} label="Entretiens datés" value={metrics.interviews} accent="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
+        <StatCard icon={<Trophy size={18} />} label="Offres datées" value={metrics.offers} accent="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" />
+        <StatCard icon={<XCircle size={18} />} label="Refus datés" value={metrics.refusals} accent="bg-rose-500/15 text-rose-700 dark:text-rose-300" />
+        <StatCard icon={<TrendingUp size={18} />} label="Taux entretien (%)" value={metrics.interviewRate} accent="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" />
       </div>
 
       <div className="app-panel">
@@ -147,6 +144,7 @@ export function Dashboard() {
         )}
       </div>
 
+      {metrics.unknownHistory > 0 && <p className="mt-4 text-sm text-muted">Historique incomplet pour {metrics.unknownHistory} dossier(s). Les étapes non documentées ne sont pas comptées. Les taux concernent uniquement les dossiers ayant un envoi daté.</p>}
       <SourceStats apps={apps} />
     </div>
   )
