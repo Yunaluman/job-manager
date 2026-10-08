@@ -265,7 +265,7 @@ test('portable v2 preserves monitoring, v1 restores without fabricating historic
   await call('ai', { method: 'POST', body }); await call('ai/config', { method: 'PUT', body: { monthlyLimitCents: 1500 } })
   const directory = mkdtempSync(join(tmpdir(), 'jobpilot-ai-restore-'))
   t.after(() => { for (const name of readdirSync(directory)) unlinkSync(join(directory, name)); rmdirSync(directory) })
-  const snapshot = exportSnapshot(db, { cvText: 'profile CV belongs outside telemetry' })
+  const snapshot = exportSnapshot(db, { cvText: 'profile CV belongs outside telemetry' }, 2)
   assert.equal(snapshot.version, 2)
   const destination = join(directory, 'v2.db'); restoreSnapshot(snapshot, destination)
   const restored = new Database(destination)

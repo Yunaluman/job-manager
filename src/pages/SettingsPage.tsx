@@ -85,7 +85,7 @@ export function SettingsPage() {
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-muted">
             Tout est stocké localement dans une base SQLite
-            (%LOCALAPPDATA%\JobPilot\jobpilot.db). L'export JSON complet version 2 contient candidatures, analyses, CV, profil et suivi IA ;
+            (%LOCALAPPDATA%\JobPilot\jobpilot.db). L'export JSON complet version 3 contient candidatures, analyses, CV, profil, suivi IA, actions et lectures des notifications ;
             l'Excel sert à consulter/partager. Ces exports ne contiennent pas les clés API.
             Pour copier la base, ferme d'abord JobPilot ; une copie pendant son utilisation
             peut être incomplète.
