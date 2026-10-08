@@ -42,10 +42,34 @@ export interface ApplicationEvent {
   id: string
   kind: 'sent' | 'response' | 'interview' | 'offer' | 'refusal'
   occurredAt: string
-  source: 'manual' | 'legacy-date'
+  source: 'manual' | 'legacy-date' | 'register-date'
+}
+
+const REGISTER_STATUS_LABELS: Record<string, string> = {
+  a_preparer: 'À préparer', a_postuler: 'À postuler', postule: 'Postulée', postulee: 'Postulée',
+  sans_reponse: 'Sans réponse', relance: 'Relancée', relancee: 'Relancée', entretien: 'Entretien',
+  offre: 'Offre', refus: 'Refus', refusee: 'Refusée', abandonne: 'Abandonnée', ecarte: 'Écartée',
+}
+export function applicationStatusLabel(application: Application) {
+  const raw = application.register?.raw.statut
+  return raw ? (Object.hasOwn(REGISTER_STATUS_LABELS, raw) ? REGISTER_STATUS_LABELS[raw] : raw) : STATUS_LABELS[application.status]
+}
+
+export interface RegisterProjection {
+  format: 'candidatures-csv-v1'
+  externalId: string
+  sourceName: string
+  fileSha256: string
+  rowSha256: string
+  importedAt: string
+  disposition: 'active' | 'archived' | 'excluded'
+  raw: Record<string, string>
+  retainedEvents?: ApplicationEvent[]
 }
 
 export interface Application {
+  externalId?: string
+  register?: RegisterProjection
   events?: ApplicationEvent[]
   eventHistoryComplete?: boolean
   id: string

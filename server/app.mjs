@@ -6,6 +6,7 @@ import { exportSnapshot } from './snapshots.mjs'
 import { createEncryptedBackup } from './backups.mjs'
 import { createMonitoring, initializeMonitoring, PURPOSES } from './ai-monitoring.mjs'
 import { validateApplicationEvents } from '../src/application-events.mjs'
+import { previewRegister, reconcileRegister, validateRegisterProjection } from './register-csv.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -22,13 +23,16 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   credentials.migrate()
   const writes = createWriteCoordinator(db)
   const monitoring = createMonitoring(db)
-  function confirmWrite(req, res, mutate) {
+  function writeRequest(req) {
     const supplied = req.get('X-JobPilot-Revision')
     const expectedRevision = supplied && /^(0|[1-9]\d*)$/.test(supplied) ? Number(supplied) : NaN
-    const acknowledgement = writes.commit({
+    return {
       operation: req.get('X-JobPilot-Operation'), expectedRevision,
       method: req.method, path: req.path, body: req.body,
-    }, mutate)
+    }
+  }
+  function confirmWrite(req, res, mutate) {
+    const acknowledgement = writes.commit(writeRequest(req), mutate)
     res.json(acknowledgement)
   }
   const token = randomBytes(32).toString('hex')
@@ -73,7 +77,41 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     }))()
     res.json(state)
   })
+  const applicationRows = () => db.prepare('SELECT data FROM applications').all().map((row) => JSON.parse(row.data))
+  app.post('/api/register/preview', (req, res) => {
+    if (!req.body || Object.keys(req.body).some((key) => !['csv', 'sourceName'].includes(key))) return res.status(400).json({ error: 'Aperçu invalide.' })
+    const preview = db.transaction(() => ({ ...previewRegister(req.body.csv, applicationRows(), req.body.sourceName), revision: writes.revision() }))()
+    res.json(preview)
+  })
+  app.post('/api/register/import', async (req, res, next) => {
+    try {
+      if (!req.body || Object.keys(req.body).some((key) => !['csv', 'sourceName', 'resolutions'].includes(key))) throw Object.assign(new Error('Import invalide.'), { status: 400 })
+      // Preflight prevents needless backups on stale requests or receipt replays. Commit rechecks after await.
+      const previous = writes.preflight(writeRequest(req))
+      if (previous) return res.json(previous)
+      const preview = previewRegister(req.body.csv, applicationRows(), req.body.sourceName)
+      const changes = reconcileRegister(preview, applicationRows(), req.body.resolutions)
+      changes.forEach(validateRegisterProjection)
+      changes.forEach(validateApplicationEvents)
+      if (!backupDirectory || backupRunning) return res.status(409).json({ error: 'Sauvegarde préalable indisponible. Aucun import effectué.' })
+      backupRunning = true
+      let backup
+      try { backup = await createEncryptedBackup(db, protector, backupDirectory) }
+      finally { backupRunning = false }
+      if (!backup.verified) throw new Error('Backup readback was not verified.')
+      confirmWrite(req, res, () => {
+        const upsert = db.prepare('INSERT INTO applications (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data')
+        changes.forEach((application) => upsert.run(application.id, JSON.stringify(application)))
+        return { applications: applicationRows(), imported: changes.length, backupVerified: true }
+      })
+    } catch (error) { next(error) }
+  })
   for (const table of ['applications', 'analyses']) {
+    const assertWritable = (id, body) => {
+      if (table !== 'applications') return
+      const previous = db.prepare('SELECT data FROM applications WHERE id = ?').get(id)
+      if (body?.register !== undefined || (previous && JSON.parse(previous.data).register)) throw Object.assign(new Error('Dossier issu du CSV en lecture seule. Modifie le registre puis importe son aperçu.'), { status: 400 })
+    }
     const validateLink = (item) => {
       if (table !== 'analyses' || item.applicationId === undefined) return
       if (typeof item.applicationId !== 'string' || !item.applicationId || item.applicationId.length > 200) throw Object.assign(new Error('Lien de candidature invalide.'), { status: 400 })
@@ -88,16 +126,18 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     app.put(`/api/${table}/:id`, (req, res) => {
       if (!req.body || Array.isArray(req.body) || req.body.id !== req.params.id) return res.status(400).json({ error: 'Identifiant invalide.' })
       if (table === 'applications') validateApplicationEvents(req.body)
-      confirmWrite(req, res, () => { validateLink(req.body); upsert.run(req.params.id, JSON.stringify(req.body)); return req.body })
+      confirmWrite(req, res, () => { assertWritable(req.params.id, req.body); validateLink(req.body); upsert.run(req.params.id, JSON.stringify(req.body)); return req.body })
     })
     app.delete(`/api/${table}/:id`, (req, res) => {
-      confirmWrite(req, res, () => { db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(req.params.id); return { id: req.params.id } })
+      confirmWrite(req, res, () => { assertWritable(req.params.id); db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(req.params.id); return { id: req.params.id } })
     })
     app.put(`/api/${table}`, (req, res) => {
       if (!Array.isArray(req.body) || req.body.some((item) => !item || typeof item.id !== 'string' || !item.id)) return res.status(400).json({ error: 'Liste invalide.' })
       if (new Set(req.body.map((item) => item.id)).size !== req.body.length) return res.status(400).json({ error: 'Identifiants dupliqués.' })
       if (table === 'applications') req.body.forEach(validateApplicationEvents)
       confirmWrite(req, res, () => {
+        if (table === 'applications' && applicationRows().some((application) => application.register)) throw Object.assign(new Error('Le remplacement global supprimerait des projections du registre. Import refusé.'), { status: 400 })
+        req.body.forEach((item) => assertWritable(item.id, item))
         req.body.forEach(validateLink)
         db.prepare(`DELETE FROM ${table}`).run()
         for (const item of req.body) upsert.run(item.id, JSON.stringify(item))

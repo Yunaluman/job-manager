@@ -9,7 +9,7 @@ export function createWriteCoordinator(db) {
       operation TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, acknowledgement TEXT NOT NULL);`)
   const revision = () => db.prepare('SELECT revision FROM persistence_revision WHERE singleton = 1').get().revision
   const reject = (message) => { throw Object.assign(new Error(message), { status: 409 }) }
-  const commit = db.transaction(({ operation, expectedRevision, method, path, body }, mutate) => {
+  const preflight = ({ operation, expectedRevision, method, path, body }) => {
     if (typeof operation !== 'string' || !/^[0-9a-f-]{36}$/i.test(operation) || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
       throw Object.assign(new Error('Révision et identifiant d’opération requis.'), { status: 400 })
     }
@@ -20,11 +20,18 @@ export function createWriteCoordinator(db) {
       return JSON.parse(previous.acknowledgement)
     }
     if (revision() !== expectedRevision) reject('Données modifiées ailleurs. Synchronise avant de poursuivre.')
+    return undefined
+  }
+  const commit = db.transaction((input, mutate) => {
+    const previous = preflight(input)
+    if (previous) return previous
+    const { operation, expectedRevision, method, path, body } = input
+    const fingerprint = createHash('sha256').update(JSON.stringify([method, path, expectedRevision, body ?? null])).digest('hex')
     const result = mutate()
     const acknowledgement = { ok: true, revision: expectedRevision + 1, result }
     db.prepare('UPDATE persistence_revision SET revision = ? WHERE singleton = 1').run(acknowledgement.revision)
     db.prepare('INSERT INTO persistence_receipts VALUES (?, ?, ?)').run(operation, fingerprint, JSON.stringify(acknowledgement))
     return acknowledgement
   })
-  return { revision, commit }
+  return { revision, commit, preflight }
 }

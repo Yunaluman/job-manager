@@ -15,7 +15,7 @@ export function validateApplicationEvents(application) {
   for (const event of application.events) {
     if (!event || typeof event !== 'object' || Array.isArray(event) || Object.keys(event).some((key) => !['id', 'kind', 'occurredAt', 'source'].includes(key)) ||
       typeof event.id !== 'string' || !event.id || event.id.length > 200 || ids.has(event.id) || !EVENT_KINDS.includes(event.kind) ||
-      !['manual', 'legacy-date'].includes(event.source) || !validEventDate(event.occurredAt)) fail()
+      !['manual', 'legacy-date', 'register-date'].includes(event.source) || !validEventDate(event.occurredAt) || (event.source === 'register-date' && !application.register)) fail()
     ids.add(event.id)
   }
 }

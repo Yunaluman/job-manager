@@ -86,7 +86,7 @@ export function ApplicationDetail() {
           <p className="mt-0.5 text-muted">{app.title}</p>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          {app.register ? <StatusBadge status={app.status} application={app} /> : <select
             aria-label="Statut de la candidature"
             value={app.status}
             onChange={(e) => void updateApplication(app.id, { status: e.target.value as Status }).catch(() => {})}
@@ -97,9 +97,10 @@ export function ApplicationDetail() {
                 {STATUS_LABELS[s]}
               </option>
             ))}
-          </select>
+          </select>}
           <button
             aria-label="Modifier la candidature"
+            disabled={Boolean(app.register)}
             onClick={() => setEditing(true)}
             className="rounded-lg border border-line p-2.5 text-secondary hover:border-slate-500"
           >
@@ -107,6 +108,7 @@ export function ApplicationDetail() {
           </button>
           <button
             aria-label="Supprimer la candidature"
+            disabled={Boolean(app.register)}
             onClick={remove}
             className="rounded-lg border border-line p-2.5 text-secondary hover:border-rose-500/60 hover:text-rose-700 dark:text-rose-300"
           >
@@ -114,6 +116,13 @@ export function ApplicationDetail() {
           </button>
         </div>
       </div>
+
+      {app.register && <section className="app-panel mb-6 p-5 text-sm">
+        <h2 className="mb-2 font-semibold">Registre CSV — consultation uniquement</h2>
+        <p className="text-muted">Copie de {app.register.sourceName} · identifiant {app.register.externalId} · importée le {new Date(app.register.importedAt).toLocaleString('fr-FR')}. Modifie le CSV puis importe son aperçu pour actualiser ce dossier.</p>
+        <p className="mt-2 break-all text-xs text-muted">SHA-256 du fichier importé : {app.register.fileSha256}</p>
+        <details className="mt-3"><summary className="cursor-pointer">Cellules sources, vérifications et chemins CV / lettre</summary><dl className="mt-3 space-y-2 break-words">{Object.entries(app.register.raw).map(([key, value]) => <div key={key}><dt className="font-medium">{key}</dt><dd className="whitespace-pre-wrap text-muted">{value || '—'}</dd></div>)}</dl></details>
+      </section>}
 
       {/* Parcours candidature : offre → analyse CV → lettre → candidature */}
       <div className="mb-6 flex flex-wrap items-center gap-2 app-panel p-4 text-sm">
@@ -136,11 +145,10 @@ export function ApplicationDetail() {
           <Mail size={14} /> Rédiger la lettre
         </Link>
         <ChevronRight size={14} className="text-muted" />
-        <span className="text-muted">Postuler puis passer le statut à « Postulée »</span>
+        <span className="text-muted">{app.register ? 'Après un envoi réel, actualise le registre CSV.' : 'Postuler puis passer le statut à « Postulée »'}</span>
         {!app.jobText && (
           <span className="w-full pt-1 text-xs text-amber-700 dark:text-amber-400/90">
-            Astuce : colle le texte de l'offre (bouton crayon) pour pré-remplir l'analyse et la
-            lettre.
+            {app.register ? 'Colle le texte de l’offre directement dans l’analyse CV ou la lettre.' : 'Astuce : colle le texte de l’offre (bouton crayon) pour pré-remplir l’analyse et la lettre.'}
           </span>
         )}
       </div>
@@ -151,7 +159,7 @@ export function ApplicationDetail() {
         <section className="flex flex-col gap-3 app-panel p-5">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Informations</h2>
-            <StatusBadge status={app.status} />
+            <StatusBadge status={app.status} application={app} />
           </div>
           <Info icon={<CalendarDays size={14} />} label="Premier envoi documenté" value={fmt(firstSendDate(app))} />
           <div className="flex items-center gap-2.5 text-sm">
