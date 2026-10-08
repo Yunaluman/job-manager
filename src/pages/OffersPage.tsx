@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import { useData } from '../data'
 import { saveOffer, saveCriteria, qualifyOffer, decideOffer, DECISION_LABELS, RESULT_LABELS } from '../journey'
 import type { Offer, Criterion, Qualification } from '../journey-types'
@@ -11,7 +11,8 @@ import type { CvContent } from '../document-types'
 
 const blank = () => ({ id: crypto.randomUUID(), company: '', title: '', text: '', url: '', note: '' })
 export function OffersPage() {
-  const { journey } = useData(), [selected, setSelected] = useState<string | null>(null), [creating, setCreating] = useState(false)
+  const search = useSearch({strict:false}) as {offer?:string}
+  const { journey } = useData(), [selected, setSelected] = useState<string | null>(search.offer ?? null), [creating, setCreating] = useState(false)
   const offer = journey.offers.find((item) => item.id === selected)
   return <div className="mx-auto max-w-6xl"><div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold">Offres</h1><p className="mt-2 text-sm text-muted">Évaluer avant de candidater. Le lien est conservé ; aucun contenu n’est récupéré automatiquement.</p></div><button className="app-primary" onClick={() => setCreating(true)}>Ajouter une offre</button></div>
     <CriteriaEditor key={JSON.stringify(journey.criteria)} initial={journey.criteria} />

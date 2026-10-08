@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { fail, exact, id } from './journey.mjs'
 import { validateDocument, validateDocumentVersion } from './document-model.mjs'
 import { renderDocument } from './document-export.mjs'
+import { cvText } from '../src/cv-document.mjs'
 export function registerDocumentRoutes(app, db, confirmWrite) {
   const get = (table, key) => { const row = db.prepare(`SELECT data FROM ${table} WHERE id = ?`).get(key); return row && JSON.parse(row.data) }
   const save = (documentId, input) => {
@@ -10,6 +11,11 @@ export function registerDocumentRoutes(app, db, confirmWrite) {
     if (old && (old.kind !== input.kind || old.applicationId !== input.applicationId)) fail('Type ou dossier du document modifié.')
     if (!old && input.applicationId !== undefined && !get('applications', input.applicationId)) fail('Dossier introuvable.')
     if (input.sources?.cvVersionId && get('document_versions', input.sources.cvVersionId)?.templateVersion !== 'single-column-cv-v1') fail('CV source introuvable.')
+    if (input.kind === 'letter' && input.sources?.cvVersionId) {
+      const source=get('document_versions',input.sources.cvVersionId),document=get('documents',source.documentId)
+      if(document.applicationId && document.applicationId!==input.applicationId) fail('Le CV source appartient à un autre dossier.')
+      if(input.sources.cvText!==cvText(source.content,source.layout)) fail('Le contenu du CV source a changé.')
+    }
     if (input.parentVersionId && get('document_versions', input.parentVersionId)?.documentId !== documentId) fail('Version source introuvable.')
     const rows = db.prepare('SELECT data FROM document_versions').all().map((row) => JSON.parse(row.data))
     if (rows.length >= 10000) fail('Limite de versions atteinte.')

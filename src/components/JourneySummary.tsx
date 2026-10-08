@@ -1,0 +1,10 @@
+import { Link } from '@tanstack/react-router'
+import { useData } from '../data'
+import { nextJourneyStep } from '../journey-progress.mjs'
+export function JourneySummary(){
+  const {journey,applications,actions}=useData(),offers=journey.offers.filter(item=>['pending','later'].includes(item.decision))
+  const dossiers=applications.filter(app=>app.status!=='refusee'&&(!app.register||app.register.disposition==='active')).map(app=>({app,next:nextJourneyStep(app,journey,actions)}))
+  return <section className="app-panel mb-6 p-5"><div className="mb-4 flex flex-wrap justify-between gap-3"><div><h2 className="text-lg font-semibold">Piloter mes candidatures</h2><p className="mt-1 text-sm text-muted">Décider, préparer puis suivre. Un document prêt ou exporté ne prouve aucun envoi.</p></div><Link className="app-button" to="/offres">Ajouter ou qualifier une offre</Link></div>
+    <div className="grid gap-5 md:grid-cols-2"><div><h3 className="mb-3 font-semibold">Offres à décider ({offers.length})</h3>{!offers.length&&<p className="text-sm text-muted">Aucune offre en attente de décision.</p>}<ul className="space-y-3">{offers.slice(0,5).map(offer=><li key={offer.id}><Link className="underline" to="/offres" search={{offer:offer.id}}>{offer.company} — {offer.title}</Link><p className="text-xs text-muted">{offer.decision==='later'?'Décision reportée':'Décision à prendre'} · aucune candidature automatique</p></li>)}</ul></div><div><h3 className="mb-3 font-semibold">Dossiers ouverts ({dossiers.length})</h3>{!dossiers.length&&<p className="text-sm text-muted">Une décision « Poursuivre » prépare un dossier.</p>}<ul className="space-y-3">{dossiers.slice(0,6).map(({app,next})=><li key={app.id}><Link className="underline" to="/candidatures/$id" params={{id:app.id}} search={{tab:next.tab}}>{app.company} — {app.title}</Link><p className="text-sm">{next.label}</p><p className="text-xs text-muted">{next.reason}</p></li>)}</ul></div></div>
+  </section>
+}

@@ -3,6 +3,9 @@ import type { Application } from '../types'
 import { useApplications } from '../storage'
 import { funnelMetrics, applicationEvents } from '../application-events.mjs'
 import { PlanningSummary } from '../components/PlanningSummary'
+import { JourneySummary } from '../components/JourneySummary'
+import { useData } from '../data'
+import { withDeclaredSends } from '../journey-progress.mjs'
 
 function StatCard({
   icon,
@@ -94,7 +97,8 @@ function SourceStats({ apps }: { apps: Application[] }) {
 }
 
 export function Dashboard() {
-  const apps = useApplications()
+  const submissions = useData().journey.submissions
+  const apps = useApplications().map(app=>withDeclaredSends(app,submissions))
   const metrics = funnelMetrics(apps)
 
   return (
@@ -102,6 +106,7 @@ export function Dashboard() {
       <h1 className="mb-1 text-2xl font-semibold tracking-tight sm:text-3xl">Tableau de bord</h1>
       <p className="mb-8 text-sm text-muted">Vue d'ensemble de ta recherche d'emploi.</p>
       <PlanningSummary />
+      <JourneySummary />
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard icon={<Send size={18} />} label="Envois datés" value={metrics.sent} accent="bg-sky-500/15 text-sky-700 dark:text-sky-300" />
