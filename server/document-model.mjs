@@ -11,17 +11,20 @@ export function validateLetter(value) {
   if (!exact(value, LETTER_FIELDS) || LETTER_FIELDS.some((key) => !text(value[key], key === 'body' ? 100000 : 5000)) || !value.body.trim()) fail('Lettre invalide : un corps est requis.')
 }
 export function validateDocument(value) {
-  if (!exact(value, ['id', 'kind', 'applicationId', 'createdAt', 'updatedAt', 'latestVersionId']) || !id(value.id) || value.kind !== 'letter' || !id(value.applicationId) || !id(value.latestVersionId) || !timestamp(value.createdAt) || !timestamp(value.updatedAt)) fail('Document invalide.')
+  if (!exact(value, ['id', 'kind', 'applicationId', 'createdAt', 'updatedAt', 'latestVersionId']) || !id(value.id) || !['letter', 'cv'].includes(value.kind) || (value.applicationId !== undefined && !id(value.applicationId)) || (value.kind === 'letter' && !id(value.applicationId)) || !id(value.latestVersionId) || !timestamp(value.createdAt) || !timestamp(value.updatedAt)) fail('Document invalide.')
 }
 export function validateDocumentVersion(value) {
-  if (!exact(value, ['id', 'documentId', 'number', 'createdAt', 'title', 'status', 'content', 'layout', 'templateVersion', 'parentVersionId', 'sources']) || !id(value.id) || !id(value.documentId) || !Number.isSafeInteger(value.number) || value.number < 1 || !timestamp(value.createdAt) || !text(value.title, 300) || !value.title.trim() || !['draft', 'ready', 'archived'].includes(value.status) || value.templateVersion !== 'classic-letter-v1' || (value.parentVersionId !== undefined && !id(value.parentVersionId))) fail('Version de document invalide.')
-  validateLetter(value.content); validateLayout(value.layout)
-  if (!exact(value.sources, ['offerText', 'cvText', 'legacyText']) || Object.values(value.sources).some((entry) => !text(entry))) fail('Sources de document invalides.')
+  if (!exact(value, ['id', 'documentId', 'number', 'createdAt', 'title', 'status', 'content', 'layout', 'templateVersion', 'parentVersionId', 'sources']) || !id(value.id) || !id(value.documentId) || !Number.isSafeInteger(value.number) || value.number < 1 || !timestamp(value.createdAt) || !text(value.title, 300) || !value.title.trim() || !['draft', 'ready', 'archived'].includes(value.status) || !['classic-letter-v1', 'single-column-cv-v1'].includes(value.templateVersion) || (value.parentVersionId !== undefined && !id(value.parentVersionId))) fail('Version de document invalide.')
+  if (value.templateVersion === 'single-column-cv-v1') validateCv(value.content, value.layout)
+  else { validateLetter(value.content); validateLayout(value.layout) }
+  if (!exact(value.sources, ['offerText', 'cvText', 'legacyText', 'cvVersionId']) || Object.entries(value.sources).some(([key, entry]) => key === 'cvVersionId' ? !id(entry) : !text(entry))) fail('Sources de document invalides.')
 }
 export function validateDocumentLinks(journey) {
   for (const doc of journey.documents) if (!journey.documentVersions.some((version) => version.id === doc.latestVersionId && version.documentId === doc.id)) fail('Version courante absente.')
   for (const version of journey.documentVersions) {
     if (!journey.documents.some((doc) => doc.id === version.documentId)) fail('Document de version absent.')
+    if (journey.documents.find((doc) => doc.id === version.documentId).kind !== (version.templateVersion === 'single-column-cv-v1' ? 'cv' : 'letter')) fail('Type de version incohérent.')
+    if (version.sources.cvVersionId && !journey.documentVersions.some((source) => source.id === version.sources.cvVersionId && source.templateVersion === 'single-column-cv-v1')) fail('CV source absent.')
     if (version.parentVersionId && !journey.documentVersions.some((parent) => parent.id === version.parentVersionId && parent.documentId === version.documentId && parent.number < version.number)) fail('Version source incohérente.')
     if (journey.documentVersions.some((other) => other.id !== version.id && other.documentId === version.documentId && other.number === version.number)) fail('Numéro de version dupliqué.')
   }
@@ -29,3 +32,4 @@ export function validateDocumentLinks(journey) {
 export function letterBlocks(version) {
   return LETTER_FIELDS.filter((key) => !version.layout.hidden.includes(key) && version.content[key].trim()).flatMap((key) => version.content[key].split('\n').map((line) => ({ text: line, bold: key === 'subject', right: key === 'recipient' || key === 'placeDate', after: key === 'body' ? 5 : 8 })))
 }
+import { validateCv } from '../src/cv-document.mjs'

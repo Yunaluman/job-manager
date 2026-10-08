@@ -2,18 +2,18 @@ import { useState } from 'react'
 import { useData } from '../data'
 import { hasApiKey, callApi } from '../cv'
 import type { Application } from '../types'
-import type { DocumentVersion, DocumentInput, LetterField } from '../document-types'
+import type { DocumentVersion, DocumentInput, LetterField, LetterContent } from '../document-types'
 import { DOCUMENT_STATUS, saveDocument, downloadDocument } from '../documents'
 import { WriteForm } from './WriteForm'
 import { DocumentPreview } from './DocumentPreview'
 const fields: Record<LetterField, string> = { sender: 'Expéditeur', recipient: 'Destinataire', placeDate: 'Lieu et date', subject: 'Objet', greeting: 'Formule d’appel', body: 'Contenu', closing: 'Formule de clôture', signature: 'Signature' }
 export function DocumentsPanel({ application }: { application: Application }) {
   const { journey, settings, analyses } = useData(), [edit, setEdit] = useState<{ id: string; input: DocumentInput }>(), [dirty, setDirty] = useState(false), [preview, setPreview] = useState<DocumentVersion>(), [error, setError] = useState(''), [generating, setGenerating] = useState(false)
-  const documents = journey.documents.filter((doc) => doc.applicationId === application.id)
+  const documents = journey.documents.filter((doc) => doc.applicationId === application.id && doc.kind === 'letter')
   function start(version?: DocumentVersion, legacyText?: string) {
     if (generating) return
     if (dirty && !confirm('Abandonner les modifications non enregistrées ?')) return
-    const content = version?.content ?? { sender: [settings.profileName, settings.profileEmail, settings.profilePhone, settings.profileCity].filter(Boolean).join('\n'), recipient: application.company, placeDate: [settings.profileCity, new Date().toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })].filter(Boolean).join(', '), subject: `Candidature — ${application.title}`, greeting: '', body: legacyText ?? '', closing: '', signature: settings.profileName }
+    const content = version?.content as LetterContent | undefined ?? { sender: [settings.profileName, settings.profileEmail, settings.profilePhone, settings.profileCity].filter(Boolean).join('\n'), recipient: application.company, placeDate: [settings.profileCity, new Date().toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })].filter(Boolean).join(', '), subject: `Candidature — ${application.title}`, greeting: '', body: legacyText ?? '', closing: '', signature: settings.profileName }
     setEdit({ id: version?.documentId ?? crypto.randomUUID(), input: { kind: 'letter', applicationId: application.id, title: version?.title ?? `Lettre — ${application.company}`, status: 'draft', content, layout: version?.layout ?? { fontSize: 11, marginMm: 20, hidden: legacyText ? ['sender', 'recipient', 'placeDate', 'subject', 'greeting', 'closing', 'signature'] : [] }, ...(version ? { parentVersionId: version.id } : {}), sources: version?.sources ?? { offerText: application.jobText ?? '', cvText: settings.cvText, ...(legacyText ? { legacyText } : {}) } } }); setDirty(false); setError('')
   }
   function patch(input: Partial<DocumentInput>) { setEdit((old) => old && ({ ...old, input: { ...old.input, ...input } })); setDirty(true) }
@@ -22,7 +22,7 @@ export function DocumentsPanel({ application }: { application: Application }) {
     setGenerating(true); setError('')
     try {
       const result = await callApi(`Propose uniquement le corps d’une lettre de motivation en français. Aucun en-tête, coordonnées, objet, formule d’appel, clôture ou signature. N’invente aucune expérience. CV source :\n${edit.input.sources.cvText ?? ''}\nOffre source :\n${edit.input.sources.offerText ?? ''}`, settings, 'letter-generation')
-      patch({ content: { ...edit.input.content, body: result } })
+      patch({ content: { ...edit.input.content as LetterContent, body: result } })
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Génération impossible.') } finally { setGenerating(false) }
   }
   return <section className="app-panel mb-6 p-5" id="documents"><h2 className="mb-2 text-lg font-semibold">Documents</h2><p className="mb-4 text-sm text-muted">Contenus et versions conservés dans JobPilot. Les fichiers sont générés au téléchargement. Un export ne déclare aucun envoi et ne termine aucune action.</p><button type="button" className="app-button" onClick={() => start()}>Nouvelle lettre</button>
@@ -31,7 +31,7 @@ export function DocumentsPanel({ application }: { application: Application }) {
     {error && <p role="alert" className="my-3 text-rose-700">{error}</p>}{preview && <DocumentPreview key={preview.id} version={preview} close={() => setPreview(undefined)} />}
     {edit && <div className="mt-4 border-t border-line pt-4"><h3 className="mb-3 font-semibold">{edit.input.parentVersionId ? 'Nouvelle version depuis une version conservée' : 'Nouvelle lettre'}</h3><WriteForm dirty={dirty} disabled={generating} label="Enregistrer une nouvelle version" save={async () => { await saveDocument(edit.id, edit.input); setDirty(false); setEdit(undefined) }}>
       <fieldset disabled={generating} className="space-y-4"><label className="block">Titre<input className="app-field mt-1" required maxLength={300} value={edit.input.title} onChange={(event) => patch({ title: event.target.value })} /></label>
-      {(Object.keys(fields) as LetterField[]).map((key) => <div key={key}><label className="block">{fields[key]}<textarea className="app-field mt-1" rows={key === 'body' ? 10 : 2} required={key === 'body'} value={edit.input.content[key]} onChange={(event) => patch({ content: { ...edit.input.content, [key]: event.target.value } })} /></label>{key !== 'body' && <label className="text-sm"><input type="checkbox" checked={!edit.input.layout.hidden.includes(key)} onChange={(event) => patch({ layout: { ...edit.input.layout, hidden: event.target.checked ? edit.input.layout.hidden.filter((field) => field !== key) : [...edit.input.layout.hidden, key] } })} /> Afficher {fields[key].toLowerCase()}</label>}</div>)}
+      {(Object.keys(fields) as LetterField[]).map((key) => <div key={key}><label className="block">{fields[key]}<textarea className="app-field mt-1" rows={key === 'body' ? 10 : 2} required={key === 'body'} value={(edit.input.content as LetterContent)[key]} onChange={(event) => patch({ content: { ...edit.input.content as LetterContent, [key]: event.target.value } })} /></label>{key !== 'body' && <label className="text-sm"><input type="checkbox" checked={!edit.input.layout.hidden.includes(key)} onChange={(event) => patch({ layout: { ...edit.input.layout, hidden: event.target.checked ? edit.input.layout.hidden.filter((field) => field !== key) : [...edit.input.layout.hidden, key] } })} /> Afficher {fields[key].toLowerCase()}</label>}</div>)}
       <div className="flex flex-wrap gap-3"><label>Taille (10–12 pt)<input className="app-field" type="number" min={10} max={12} value={edit.input.layout.fontSize} onChange={(event) => patch({ layout: { ...edit.input.layout, fontSize: Number(event.target.value) } })} /></label><label>Marges (15–25 mm)<input className="app-field" type="number" min={15} max={25} value={edit.input.layout.marginMm} onChange={(event) => patch({ layout: { ...edit.input.layout, marginMm: Number(event.target.value) } })} /></label></div>
       <label className="block">État<select className="app-field" value={edit.input.status} onChange={(event) => patch({ status: event.target.value as DocumentInput['status'] })}><option value="draft">Brouillon</option><option value="ready">Prêt — je valide ce contenu</option><option value="archived">Archivé</option></select></label>
       <p className="text-xs text-muted">Calibri dans Word, Carlito dans le PDF. Une retouche extérieure après export reste inconnue de JobPilot.</p></fieldset>
