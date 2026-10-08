@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Mail, Settings, User, Menu, X, Activity } from 'lucide-react'
+import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Mail, Settings, User, Menu, X, Activity, ListTodo } from 'lucide-react'
+import { NotificationCenter } from './NotificationCenter'
 import { PersistenceBanner } from './PersistenceBanner'
 import { ThemePicker } from './ThemePicker'
 import { AiBudgetBanner } from './AiBudgetBanner'
 
 const destinations = [
   { to: '/', label: 'Vue d’ensemble', icon: LayoutDashboard },
+  { to: '/actions', label: 'Actions', icon: ListTodo },
   { to: '/candidatures', label: 'Candidatures', icon: KanbanSquare },
   { to: '/cv', label: 'Analyse du CV', icon: FileText },
   { to: '/lettre', label: 'Lettres', icon: Mail },
@@ -61,7 +63,7 @@ export function Layout() {
     <div className="min-w-0 flex-1">
       <header className="flex min-h-18 items-center justify-between gap-3 border-b border-line bg-surface/80 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3"><button ref={menuButton} aria-label="Ouvrir la navigation" aria-expanded={open} aria-controls="main-navigation" className="app-button px-2 lg:hidden" onClick={() => setOpen(true)}><Menu size={20} /></button><span className="hidden text-xs font-medium text-muted sm:block">Recherche d’emploi <span className="mx-2 text-line">/</span><span className="text-secondary">{destinations.find((item) => item.to === pathname)?.label ?? 'Dossier candidature'}</span></span><span className="font-semibold sm:hidden">JobPilot.</span></div>
-        <ThemePicker />
+        <div className="flex shrink-0 items-center gap-2"><NotificationCenter /><ThemePicker /></div>
       </header>
       <main id="main-content" tabIndex={-1} className="min-w-0 px-4 py-6 sm:px-6 lg:p-8 xl:p-10"><PersistenceBanner /><AiBudgetBanner /><Outlet /><footer className="mx-auto mt-12 max-w-6xl border-t border-line pt-4 text-xs text-muted">JobPilot · Suivi personnel</footer></main>
     </div>

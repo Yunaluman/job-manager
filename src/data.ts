@@ -5,6 +5,8 @@ import { apiGet, apiWrite, refreshSession } from './api'
 import { createConfirmedStore } from './persistence-core.mjs'
 import { migrateLegacyList } from './legacy-migration.mjs'
 import type { AiConfig } from './ai-monitoring'
+import type { Action, NotificationReadState } from './action-types'
+import { validateAction, validateNotificationReadState } from './actions-core.mjs'
 
 export interface DataState {
   revision: number
@@ -12,9 +14,11 @@ export interface DataState {
   analyses: CvAnalysis[]
   settings: Settings
   aiConfig: AiConfig
+  actions: Action[]
+  notificationReads: NotificationReadState[]
 }
 const initialState: DataState = {
-  revision: 0, applications: [], analyses: [],
+  revision: 0, applications: [], analyses: [], actions: [], notificationReads: [],
   aiConfig: { monthlyLimitCents: null, tariffs: [] },
   settings: { keyStatus: {}, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', cvText: '', profileName: '', profileEmail: '', profilePhone: '', profileCity: '', profileTitle: '' },
 }
@@ -23,6 +27,8 @@ export const dataStore = createConfirmedStore<DataState>({
   load: async () => {
     await refreshSession()
     const loaded = await apiGet<DataState>('state')
+    if (!Array.isArray(loaded.actions) || !Array.isArray(loaded.notificationReads)) throw new Error('Planning absent. Redémarre JobPilot puis synchronise.')
+    loaded.actions.forEach(validateAction); loaded.notificationReads.forEach(validateNotificationReadState)
     if (!loaded.aiConfig || !Array.isArray(loaded.aiConfig.tariffs) || (loaded.aiConfig.monthlyLimitCents !== null && (!Number.isSafeInteger(loaded.aiConfig.monthlyLimitCents) || loaded.aiConfig.monthlyLimitCents < 0))) throw new Error('Configuration IA absente ou invalide. Redémarre JobPilot puis synchronise.')
     return { ...loaded, settings: { ...initialState.settings, ...loaded.settings } }
   },
