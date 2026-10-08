@@ -9,6 +9,7 @@ import { validateApplicationEvents } from '../src/application-events.mjs'
 import { previewRegister, reconcileRegister, validateRegisterProjection } from './register-csv.mjs'
 import { initializeActions, planningSnapshot, registerActionRoutes } from './actions.mjs'
 import { initializeJourney, journeySnapshot, registerJourneyRoutes } from './journey.mjs'
+import { registerDocumentRoutes } from './documents.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -63,6 +64,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   app.use('/api', express.json({ limit: '10mb' }))
   registerActionRoutes(app, db, confirmWrite)
   registerJourneyRoutes(app, db, confirmWrite)
+  registerDocumentRoutes(app, db, confirmWrite)
   app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
   let backupRunning = false
   app.post('/api/backups', async (_req, res, next) => {
