@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
 import { createServer, request } from 'node:http'
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync, unlinkSync, rmdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -117,6 +117,8 @@ async function fixture(t, fetchProvider) {
     return new Promise((done, reject) => {
       const req = request({ host: '127.0.0.1', port, path: url, method, headers: {
         ...(authenticated ? { 'X-JobPilot-Session': result.token } : {}),
+        'X-JobPilot-Revision': String(db.prepare('SELECT revision FROM persistence_revision WHERE singleton = 1').get().revision),
+        'X-JobPilot-Operation': randomUUID(),
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers,
       } }, (res) => {
         let text = ''
@@ -149,6 +151,10 @@ test('host, origin, fetch metadata, token and content type reject hostile reques
   assert.equal((await call('/api/settings', { headers: { 'X-JobPilot-Session': 'x'.repeat(64) } })).status, 401)
   assert.equal((await call('/api/settings', { method: 'PUT', raw: '{}', headers: { 'Content-Type': 'text/plain' } })).status, 415)
   assert.equal((await call('/api/settings', { method: 'PUT', raw: '{', headers: { 'Content-Type': 'application/json' } })).status, 400)
+  const bootstrap = await call('/local-session', { authenticated: false })
+  assert.match(JSON.parse(bootstrap.text).token, /^[0-9a-f]{64}$/)
+  assert.equal(bootstrap.headers['cache-control'], 'no-store')
+  assert.equal((await call('/local-session', { authenticated: false, headers: { Origin: 'https://attacker.example' } })).status, 403)
 })
 test('settings reject credential fields and credentials never appear in responses', async (t) => {
   const { call } = await fixture(t)
@@ -156,10 +162,29 @@ test('settings reject credential fields and credentials never appear in response
   const save = await call('/api/credentials/zai', { method: 'PUT', body: { key: 'fixture-new-secret' } })
   assert.equal(save.status, 200)
   assert.equal(save.text.includes('fixture-new-secret'), false)
-  assert.equal(JSON.parse(save.text).keyStatus.zai, true)
+  assert.equal(JSON.parse(save.text).result.keyStatus.zai, true)
   assert.equal((await call('/api/credentials/custom', { method: 'PUT', body: { key: 'fixture' } })).status, 400)
   const remove = await call('/api/credentials/zai', { method: 'DELETE' })
-  assert.equal(JSON.parse(remove.text).keyStatus.zai, false)
+  assert.equal(JSON.parse(remove.text).result.keyStatus.zai, false)
+})
+
+test('HTTP writes require a current revision and replay only the same operation', async (t) => {
+  const { call } = await fixture(t)
+  const body = { id: 'fixture-app', company: 'Fixture' }
+  const operation = randomUUID()
+  const headers = { 'X-JobPilot-Revision': '0', 'X-JobPilot-Operation': operation }
+  assert.equal((await call('/api/applications/fixture-app', { method: 'PUT', body, headers: { 'X-JobPilot-Revision': '' } })).status, 400)
+  const saved = await call('/api/applications/fixture-app', { method: 'PUT', body, headers })
+  assert.equal(saved.status, 200)
+  assert.deepEqual(JSON.parse(saved.text), { ok: true, revision: 1, result: body })
+  const replay = await call('/api/applications/fixture-app', { method: 'PUT', body, headers })
+  assert.equal(replay.text, saved.text)
+  assert.equal((await call('/api/applications/fixture-app', { method: 'PUT', body: { ...body, company: 'Other' }, headers })).status, 409)
+  assert.equal((await call('/api/applications/fixture-app', { method: 'DELETE', headers: { 'X-JobPilot-Revision': '0' } })).status, 409)
+  const state = JSON.parse((await call('/api/state')).text)
+  assert.equal(state.revision, 1)
+  assert.deepEqual(state.applications, [body])
+  assert.equal(JSON.stringify(state).includes('fixture-provider-secret'), false)
 })
 test('AI calls use server credentials, fixed destinations and no redirects', async (t) => {
   const calls = []

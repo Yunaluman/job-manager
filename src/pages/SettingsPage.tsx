@@ -1,14 +1,27 @@
 import { Settings as SettingsIcon, Database, Download, Upload, FileSpreadsheet } from 'lucide-react'
 import { exportExcel, exportJSON, importJSON } from '../storage'
 import { ProviderPicker } from '../components/ProviderPicker'
+import { apiRequest } from '../api'
+import { dataStore } from '../data'
 
-function downloadJSON() {
-  const blob = new Blob([exportJSON()], { type: 'application/json' })
+async function backupDatabase() {
+  try {
+    await dataStore.idle()
+    const result = await apiRequest<{ verified: boolean; path: string }>('POST', 'backups', {})
+    if (!result.verified) throw new Error('Sauvegarde non vérifiée.')
+    alert(`Sauvegarde chiffrée vérifiée : ${result.path}`)
+  } catch (error) { alert(error instanceof Error ? error.message : 'Sauvegarde impossible.') }
+}
+
+async function downloadJSON() {
+  try {
+  const blob = new Blob([await exportJSON()], { type: 'application/json' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
   a.download = `jobpilot-export-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(a.href)
+  } catch (error) { alert(error instanceof Error ? error.message : 'Export impossible.') }
 }
 
 function triggerImport() {
@@ -19,10 +32,17 @@ function triggerImport() {
     const file = input.files?.[0]
     if (!file) return
     try {
-      const n = importJSON(await file.text())
+      const json = await file.text()
+      const parsed = JSON.parse(json)
+      if (!Array.isArray(parsed)) throw new Error('Cet import accepte les anciens exports de candidatures. Une sauvegarde complète se restaure dans une nouvelle base avec le script de restauration.')
+      if (!confirm(`Remplacer toutes les candidatures par ${parsed.length} entrée(s) ? Une sauvegarde chiffrée sera vérifiée avant le remplacement.`)) return
+      await dataStore.idle()
+      const backup = await apiRequest<{ verified: boolean }>('POST', 'backups', {})
+      if (!backup.verified) throw new Error('Sauvegarde préalable non vérifiée : import annulé.')
+      const n = await importJSON(json)
       alert(`${n} candidature(s) importée(s).`)
-    } catch {
-      alert("Fichier invalide — l'import a échoué.")
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "L'import n'a pas été confirmé.")
     }
   }
   input.click()
@@ -50,6 +70,7 @@ export function SettingsPage() {
             <Database size={15} className="text-slate-400" /> Mes données
           </div>
           <div className="flex flex-wrap gap-3">
+            <button onClick={() => void backupDatabase()} className={btnClass}><Database size={15} /> Sauvegarder la base chiffrée</button>
             <button onClick={() => void exportExcel()} className={btnClass}>
               <FileSpreadsheet size={15} /> Exporter en Excel
             </button>
@@ -62,7 +83,7 @@ export function SettingsPage() {
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
             Tout est stocké localement dans une base SQLite
-            (%LOCALAPPDATA%\JobPilot\jobpilot.db). L'export JSON contient les candidatures ;
+            (%LOCALAPPDATA%\JobPilot\jobpilot.db). L'export JSON complet contient candidatures, analyses, CV et profil ;
             l'Excel sert à consulter/partager. Ces exports ne contiennent pas les clés API.
             Pour copier la base, ferme d'abord JobPilot ; une copie pendant son utilisation
             peut être incomplète.

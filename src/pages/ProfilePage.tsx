@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { User, FileUp, Loader2 } from 'lucide-react'
 import { useSettings, saveSettings } from '../cv'
 import { extractTextFromFile } from '../extract'
+import { DraftGuard } from '../components/DraftGuard'
 
 const inputClass =
   'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
@@ -16,13 +17,36 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function ProfilePage() {
-  const settings = useSettings()
+  const confirmed = useSettings()
+  const [draft, setDraft] = useState<Partial<typeof confirmed>>({})
+  const settings = { ...confirmed, ...draft }
+  const [saving, setSaving] = useState(false)
+  const dirty = Object.keys(draft).length > 0
+
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = '' } }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
   const [extracting, setExtracting] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [fileError, setFileError] = useState('')
 
   const set = (k: keyof typeof settings) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    saveSettings({ [k]: e.target.value })
+    setDraft((previous) => ({ ...previous, [k]: e.target.value }))
+
+  async function saveProfile() {
+    if (saving) return
+    setSaving(true)
+    setFileError('')
+    const submitted = draft
+    try {
+      await saveSettings(submitted)
+      setDraft((current) => Object.fromEntries(Object.entries(current).filter(([key, value]) => submitted[key as keyof typeof submitted] !== value)))
+    }
+    catch (error) { setFileError(error instanceof Error ? error.message : 'Enregistrement non confirmé.') }
+    finally { setSaving(false) }
+  }
 
   async function handleFile(file: File | undefined) {
     if (!file) return
@@ -31,7 +55,7 @@ export function ProfilePage() {
     try {
       const text = await extractTextFromFile(file)
       if (!text) throw new Error('Aucun texte trouvé dans ce fichier (CV scanné en image ?).')
-      saveSettings({ cvText: text })
+      setDraft((previous) => ({ ...previous, cvText: text }))
     } catch (e) {
       setFileError(e instanceof Error ? e.message : 'Impossible de lire ce fichier.')
     } finally {
@@ -49,15 +73,17 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      <DraftGuard dirty={dirty} />
       <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight">
         <User size={22} className="text-indigo-400" /> Mon profil
       </h1>
       <p className="mb-8 text-sm text-slate-400">
-        Ton identité et ton CV — la matière première des analyses et des lettres. Sauvegarde
-        automatique.
+        Ton identité et ton CV — la matière première des analyses et des lettres. Enregistre les modifications avant de quitter cette page.
       </p>
 
       <div className="flex flex-col gap-6">
+        <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-500 px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer le profil et le CV'}</button>
+        {fileError && <p role="alert" className="text-sm text-rose-400">{fileError}</p>}
         <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
             <User size={15} className="text-slate-400" /> Identité
@@ -118,7 +144,7 @@ export function ProfilePage() {
             className={inputClass}
             rows={8}
             value={settings.cvText}
-            onChange={(e) => saveSettings({ cvText: e.target.value })}
+            onChange={(e) => setDraft((previous) => ({ ...previous, cvText: e.target.value }))}
             placeholder="…ou colle ici le contenu texte de ton CV"
           />
           <p className="mt-2 text-[11px] text-slate-500">

@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Mail, Settings, User } from 'lucide-react'
+import { PersistenceBanner } from './PersistenceBanner'
 
 const linkClass =
   'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-100 transition-colors [&.active]:bg-indigo-500/15 [&.active]:text-indigo-300'
@@ -41,6 +42,7 @@ export function Layout() {
         </div>
       </aside>
       <main className="flex-1 overflow-x-hidden p-8">
+        <PersistenceBanner />
         <Outlet />
       </main>
     </div>
