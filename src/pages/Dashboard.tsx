@@ -13,13 +13,13 @@ function StatCard({
 }: {
   icon: React.ReactNode
   label: string
-  value: number
+  value: number | null
   accent: string
 }) {
   return (
     <div className="app-panel p-5">
       <div className={`mb-3 inline-flex rounded-xl p-2.5 ${accent}`}>{icon}</div>
-      <div className="text-3xl font-bold tabular-nums">{value}</div>
+      <div className="text-3xl font-bold tabular-nums">{value ?? '—'}</div>
       <div className="mt-1 text-sm text-muted">{label}</div>
     </div>
   )
@@ -72,17 +72,17 @@ function SourceStats({ apps }: { apps: Application[] }) {
               <td className="px-5 py-3 font-medium">{r.source}</td>
               <td className="px-3 py-3 text-right tabular-nums text-secondary">{r.envoyees}</td>
               <td className="px-3 py-3 text-right tabular-nums text-secondary">{r.entretiens}</td>
-              <td className="px-3 py-3 text-right tabular-nums text-secondary">{r.tauxReponse}%</td>
+              <td className="px-3 py-3 text-right tabular-nums text-secondary">{r.tauxReponse === null ? '—' : `${r.tauxReponse}%`}</td>
               <td className="px-5 py-3">
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 w-full max-w-32 overflow-hidden rounded-full bg-subtle">
                     <div
                       className="h-full rounded-full bg-indigo-500"
-                      style={{ width: `${r.tauxEntretien}%` }}
+                      style={{ width: `${r.tauxEntretien ?? 0}%` }}
                     />
                   </div>
                   <span className="w-9 text-right text-xs tabular-nums text-muted">
-                    {r.tauxEntretien}%
+                    {r.tauxEntretien === null ? '—' : `${r.tauxEntretien}%`}
                   </span>
                 </div>
               </td>

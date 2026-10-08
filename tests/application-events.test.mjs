@@ -25,7 +25,7 @@ test('legacy status never manufactures milestones or dates', () => {
 
 test('repeated responses and interviews count unique applications', () => {
   assert.equal(funnelMetrics([{ events: [{ kind: 'sent' }, { kind: 'interview' }, { kind: 'interview' }, { kind: 'response' }] }]).interviews, 1)
-  assert.equal(funnelMetrics([]).responseRate, 0)
+  assert.equal(funnelMetrics([]).responseRate, null)
 })
 
 test('only real calendar dates and bounded unambiguous event records are accepted', () => {
