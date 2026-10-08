@@ -9,6 +9,7 @@ import { createWriteCoordinator } from '../server/writes.mjs'
 import { exportSnapshot, restoreSnapshot, validateSnapshot } from '../server/snapshots.mjs'
 import { createWindowsProtector } from '../server/credentials.mjs'
 import { createEncryptedBackup, restoreEncryptedBackup } from '../server/backups.mjs'
+import { createMonitoring, monitoringSnapshot } from '../server/ai-monitoring.mjs'
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'jobpilot-snapshot-'))
@@ -58,6 +59,10 @@ test('tampered backups fail before creating a destination', (t) => {
 
 test('real DPAPI online backup restores WAL data and protected credentials', { skip: process.platform !== 'win32' }, async (t) => {
   const { db, directory } = fixture(t)
+  const monitoring = createMonitoring(db)
+  monitoring.finish(monitoring.begin({ purpose: 'cv-analysis', provider: 'mistral', model: 'fixture-model' }), { status: 'uncertain', errorKind: 'timeout', secret: 'fixture-secret' })
+  monitoring.setBudget({ monthlyLimitCents: 1500 })
+  const originalMonitoring = monitoringSnapshot(db)
   const protector = createWindowsProtector()
   db.exec('CREATE TABLE credentials (provider TEXT PRIMARY KEY, encrypted TEXT NOT NULL)')
   db.prepare('INSERT INTO credentials VALUES (?, ?)').run('mistral', protector.protect('fixture-secret'))
@@ -73,6 +78,7 @@ test('real DPAPI online backup restores WAL data and protected credentials', { s
   try {
     assert.equal(restored.prepare('SELECT COUNT(*) AS count FROM analyses').get().count, 1)
     assert.equal(protector.unprotect(restored.prepare('SELECT encrypted FROM credentials').get().encrypted), 'fixture-secret')
+    assert.deepEqual(monitoringSnapshot(restored), originalMonitoring)
   } finally { restored.close() }
   assert.throws(() => restoreEncryptedBackup(envelope, protector, destination), { code: 'EEXIST' })
 })

@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto'
 import { openSync, writeFileSync, fsyncSync, closeSync, unlinkSync } from 'node:fs'
 import Database from 'better-sqlite3'
 import { assertDatabaseIntegrity, PUBLIC_FIELDS } from './credentials.mjs'
+import { monitoringSnapshot, restoreMonitoring, validateMonitoringSnapshot } from './ai-monitoring.mjs'
 
 const checksum = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
-export function exportSnapshot(db, settings) {
+export function exportSnapshot(db, settings, version = 2) {
   assertDatabaseIntegrity(db)
   return db.transaction(() => {
     const payload = {
@@ -13,17 +14,19 @@ export function exportSnapshot(db, settings) {
       analyses: db.prepare('SELECT data FROM analyses ORDER BY id').all().map((row) => JSON.parse(row.data)),
       settings: Object.fromEntries(PUBLIC_FIELDS.filter((field) => typeof settings[field] === 'string').map((field) => [field, settings[field]])),
     }
-    return { format: 'jobpilot-portable', version: 1, exportedAt: new Date().toISOString(), checksum: checksum(payload), payload }
+    if (version === 2) payload.monitoring = monitoringSnapshot(db)
+    return { format: 'jobpilot-portable', version, exportedAt: new Date().toISOString(), checksum: checksum(payload), payload }
   })()
 }
 
 export function validateSnapshot(snapshot) {
-  if (!snapshot || snapshot.format !== 'jobpilot-portable' || snapshot.version !== 1 || !snapshot.payload || snapshot.checksum !== checksum(snapshot.payload)) throw new Error('Invalid snapshot or checksum.')
+  if (!snapshot || snapshot.format !== 'jobpilot-portable' || ![1, 2].includes(snapshot.version) || !snapshot.payload || snapshot.checksum !== checksum(snapshot.payload) || Object.keys(snapshot.payload).some((key) => !['revision', 'applications', 'analyses', 'settings', ...(snapshot.version === 2 ? ['monitoring'] : [])].includes(key))) throw new Error('Invalid snapshot or checksum.')
   const { revision, applications, analyses, settings } = snapshot.payload
   if (!Number.isSafeInteger(revision) || revision < 0 || !settings || Array.isArray(settings) || typeof settings !== 'object' || Object.entries(settings).some(([field, value]) => !PUBLIC_FIELDS.includes(field) || typeof value !== 'string' || value.length > 100000)) throw new Error('Invalid snapshot settings.')
   for (const rows of [applications, analyses]) {
     if (!Array.isArray(rows) || rows.some((row) => !row || typeof row !== 'object' || Array.isArray(row) || typeof row.id !== 'string' || !row.id) || new Set(rows.map((row) => row.id)).size !== rows.length) throw new Error('Invalid snapshot rows.')
   }
+  if (snapshot.version === 2) validateMonitoringSnapshot(snapshot.payload.monitoring)
   return snapshot.payload
 }
 
@@ -44,6 +47,7 @@ export function restoreSnapshot(snapshot, destination) {
       }
       db.prepare('INSERT INTO settings VALUES (?, ?)').run('main', JSON.stringify(payload.settings))
       db.prepare('INSERT INTO persistence_revision VALUES (1, ?)').run(payload.revision)
+      if (snapshot.version === 2) restoreMonitoring(db, payload.monitoring)
     })()
     assertDatabaseIntegrity(db)
     bytes = db.serialize()
@@ -62,7 +66,7 @@ export function restoreSnapshot(snapshot, destination) {
   const restored = new Database(destination, { readonly: true, fileMustExist: true })
   try {
     assertDatabaseIntegrity(restored)
-    const actual = exportSnapshot(restored, JSON.parse(restored.prepare("SELECT value FROM settings WHERE key = 'main'").get().value))
+    const actual = exportSnapshot(restored, JSON.parse(restored.prepare("SELECT value FROM settings WHERE key = 'main'").get().value), snapshot.version)
     if (actual.checksum !== snapshot.checksum) throw new Error('Restored data mismatch.')
   } finally { restored.close() }
   return { applications: payload.applications.length, analyses: payload.analyses.length, revision: payload.revision }

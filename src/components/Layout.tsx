@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Mail, Settings, User, Menu, X } from 'lucide-react'
+import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Mail, Settings, User, Menu, X, Activity } from 'lucide-react'
 import { PersistenceBanner } from './PersistenceBanner'
 import { ThemePicker } from './ThemePicker'
+import { AiBudgetBanner } from './AiBudgetBanner'
 
 const destinations = [
   { to: '/', label: 'Vue d’ensemble', icon: LayoutDashboard },
@@ -11,6 +12,7 @@ const destinations = [
   { to: '/lettre', label: 'Lettres', icon: Mail },
   { to: '/profil', label: 'Mon profil', icon: User },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
+  { to: '/activite-ia', label: 'Activité IA', icon: Activity },
 ] as const
 const linkClass = 'flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-subtle hover:text-ink [&.active]:bg-indigo-500/10 [&.active]:text-indigo-700 dark:[&.active]:text-indigo-300'
 
@@ -61,7 +63,7 @@ export function Layout() {
         <div className="flex min-w-0 items-center gap-3"><button ref={menuButton} aria-label="Ouvrir la navigation" aria-expanded={open} aria-controls="main-navigation" className="app-button px-2 lg:hidden" onClick={() => setOpen(true)}><Menu size={20} /></button><span className="hidden text-xs font-medium text-muted sm:block">Recherche d’emploi <span className="mx-2 text-line">/</span><span className="text-secondary">{destinations.find((item) => item.to === pathname)?.label ?? 'Dossier candidature'}</span></span><span className="font-semibold sm:hidden">JobPilot.</span></div>
         <ThemePicker />
       </header>
-      <main id="main-content" tabIndex={-1} className="min-w-0 px-4 py-6 sm:px-6 lg:p-8 xl:p-10"><PersistenceBanner /><Outlet /><footer className="mx-auto mt-12 max-w-6xl border-t border-line pt-4 text-xs text-muted">JobPilot · Suivi personnel</footer></main>
+      <main id="main-content" tabIndex={-1} className="min-w-0 px-4 py-6 sm:px-6 lg:p-8 xl:p-10"><PersistenceBanner /><AiBudgetBanner /><Outlet /><footer className="mx-auto mt-12 max-w-6xl border-t border-line pt-4 text-xs text-muted">JobPilot · Suivi personnel</footer></main>
     </div>
   </div>
 }

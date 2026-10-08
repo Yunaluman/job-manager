@@ -60,7 +60,7 @@ export async function parseOfferWithApi(text: string, s: Settings): Promise<Pars
   const raw = await callApi(`Extrais de cette offre d'emploi un JSON strict (sans markdown, sans commentaire) avec exactement ces clés : company (nom de l'entreprise), title (intitulé du poste, sans "H/F"), location (ville), salary (tel qu'écrit, sinon null), source (site d'origine si identifiable, sinon null). Valeurs en français, null si introuvable.
 
 OFFRE :
-${text.slice(0, 6000)}`, s, 300, 0)
+${text.slice(0, 6000)}`, s, 'offer-extraction', 300, 0)
   const json = raw.match(/\{[\s\S]*\}/)?.[0]
   if (!json) throw new Error('Pas de JSON dans la réponse')
   const parsed = JSON.parse(json)

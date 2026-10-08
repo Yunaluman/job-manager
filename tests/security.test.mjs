@@ -189,7 +189,7 @@ test('HTTP writes require a current revision and replay only the same operation'
 test('AI calls use server credentials, fixed destinations and no redirects', async (t) => {
   const calls = []
   const { call } = await fixture(t, async (...args) => { calls.push(args); return Response.json({ choices: [{ message: { content: 'fixture answer' } }] }) })
-  const valid = { prompt: 'fixture prompt', baseUrl: PROVIDERS.mistral, model: 'fixture-model' }
+  const valid = { purpose: 'cv-analysis', prompt: 'fixture prompt', baseUrl: PROVIDERS.mistral, model: 'fixture-model' }
   for (const baseUrl of ['http://api.mistral.ai/v1', 'https://api.mistral.ai.attacker.example/v1', 'http://127.0.0.1:1', `${PROVIDERS.mistral}/`, 'https://user:password@api.mistral.ai/v1']) assert.equal((await call('/api/ai', { method: 'POST', body: { ...valid, baseUrl } })).status, 400)
   assert.equal((await call('/api/ai', { method: 'POST', body: { ...valid, key: 'injected' } })).status, 400)
   assert.equal(calls.length, 0)
@@ -204,13 +204,13 @@ test('AI calls use server credentials, fixed destinations and no redirects', asy
 })
 test('provider exceptions and error bodies are not relayed to the browser', async (t) => {
   const { call } = await fixture(t, async () => { throw new Error('fixture-provider-secret') })
-  const res = await call('/api/ai', { method: 'POST', body: { prompt: 'fixture', baseUrl: PROVIDERS.mistral, model: 'fixture' } })
+  const res = await call('/api/ai', { method: 'POST', body: { purpose: 'cv-analysis', prompt: 'fixture', baseUrl: PROVIDERS.mistral, model: 'fixture' } })
   assert.equal(res.status, 502)
   assert.equal(res.text.includes('fixture-provider-secret'), false)
 })
 test('provider content echoing its credential is rejected', async (t) => {
   const { call } = await fixture(t, async () => Response.json({ choices: [{ message: { content: 'fixture-provider-secret' } }] }))
-  const res = await call('/api/ai', { method: 'POST', body: { prompt: 'fixture', baseUrl: PROVIDERS.mistral, model: 'fixture' } })
+  const res = await call('/api/ai', { method: 'POST', body: { purpose: 'cv-analysis', prompt: 'fixture', baseUrl: PROVIDERS.mistral, model: 'fixture' } })
   assert.equal(res.status, 502)
   assert.equal(res.text.includes('fixture-provider-secret'), false)
 })
@@ -221,7 +221,7 @@ test('concurrent paid requests are refused and no automatic retry occurs', async
   const ready = new Promise((done) => { started = done })
   const pending = new Promise((done) => { release = done })
   const { call } = await fixture(t, async () => { calls++; started(); await pending; return Response.json({ choices: [{ message: { content: 'fixture answer' } }] }) })
-  const options = { method: 'POST', body: { prompt: 'fixture', baseUrl: PROVIDERS.mistral, model: 'fixture' } }
+  const options = { method: 'POST', body: { purpose: 'cv-analysis', prompt: 'fixture', baseUrl: PROVIDERS.mistral, model: 'fixture' } }
   const first = call('/api/ai', options)
   await ready
   try {
