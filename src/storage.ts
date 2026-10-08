@@ -1,6 +1,6 @@
 // All mutations update the cache only after server confirmation.
 import type { Application, Status } from './types'
-import { STATUS_LABELS } from './types'
+import { STATUS_LABELS, applicationStatusLabel } from './types'
 import { dataStore, useData } from './data'
 import { apiGet } from './api'
 import { applicationEvents, validEventDate, firstSendDate } from './application-events.mjs'
@@ -22,6 +22,7 @@ export async function recordApplicationEvent(id: string, kind: ApplicationEvent[
   return dataStore.mutate<Application>((state) => {
     const current = state.applications.find((app) => app.id === id)
     if (!current) throw new Error('Candidature introuvable.')
+    if (current.register) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
     const events = applicationEvents(current)
     const old = eventId ? events.find((event) => event.id === eventId) : undefined
     if (eventId && !old) throw new Error('Étape introuvable. Synchronise les données.')
@@ -39,6 +40,7 @@ export async function removeApplicationEvent(id: string, eventId: string) {
   return dataStore.mutate<Application>((state) => {
     const current = state.applications.find((app) => app.id === id)
     if (!current) throw new Error('Candidature introuvable.')
+    if (current.register) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
     const events = applicationEvents(current)
     const removed = events.find((event) => event.id === eventId)
     if (!removed) throw new Error('Étape introuvable. Synchronise les données.')
@@ -54,6 +56,7 @@ export async function updateApplication(id: string, patch: Partial<Application>)
   return dataStore.mutate<Application>((state) => {
     const current = state.applications.find((app) => app.id === id)
     if (!current) throw new Error('Candidature introuvable. Synchronise les données.')
+    if (current.register) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
     const now = new Date().toISOString()
     const next = { ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: now }
     if (patch.status && patch.status !== current.status) {
@@ -71,11 +74,13 @@ export async function updateApplication(id: string, patch: Partial<Application>)
 }
 
 export async function deleteApplication(id: string) {
-  await dataStore.mutate<{ id: string }>(() => ({ method: 'DELETE', path: `applications/${id}`,
+  await dataStore.mutate<{ id: string }>((previous) => {
+    if (previous.applications.find((app) => app.id === id)?.register) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
+    return { method: 'DELETE', path: `applications/${id}`,
     apply: (state, saved) => {
       if (saved.id !== id) throw new Error('Confirmation de suppression invalide.')
       return { ...state, applications: state.applications.filter((app) => app.id !== id) }
-    } }))
+    } } })
 }
 export async function exportExcel() {
   const { default: writeXlsxFile } = await import('write-excel-file/browser')
@@ -88,7 +93,7 @@ export async function exportExcel() {
   const rows: Row[] = apps.map((a) => [
     { value: a.company },
     { value: a.title },
-    { value: STATUS_LABELS[a.status] },
+    { value: applicationStatusLabel(a) },
     firstSendDate(a) ? { value: new Date(`${firstSendDate(a)}T12:00:00`), format: 'dd/mm/yyyy' } : { value: '' },
     a.nextActionAt ? { value: new Date(a.nextActionAt), format: 'dd/mm/yyyy' } : { value: '' },
     { value: a.location ?? '' },
@@ -118,6 +123,7 @@ export async function importJSON(json: string): Promise<number> {
 }
 // Relances dues : prochaine action passée ou aujourd'hui, dossier encore ouvert
 export function isDue(app: Application): boolean {
+  if (app.register && app.register.disposition !== 'active') return false
   if (!app.nextActionAt || app.status === 'refusee' || app.status === 'offre') return false
   return new Date(app.nextActionAt) <= new Date(new Date().toDateString())
 }

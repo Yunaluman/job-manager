@@ -136,7 +136,7 @@ export function Dashboard() {
                   <span className="text-xs text-amber-700 dark:text-amber-400">
                     prévu le {new Date(a.nextActionAt!).toLocaleDateString('fr-FR')}
                   </span>
-                  <StatusBadge status={a.status} />
+                  <StatusBadge status={a.status} application={a} />
                 </div>
               </li>
             ))}

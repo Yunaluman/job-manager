@@ -3,6 +3,7 @@ import { exportExcel, exportJSON, importJSON } from '../storage'
 import { ProviderPicker } from '../components/ProviderPicker'
 import { apiRequest } from '../api'
 import { dataStore } from '../data'
+import { RegisterImport } from '../components/RegisterImport'
 
 async function backupDatabase() {
   try {
@@ -64,6 +65,7 @@ export function SettingsPage() {
 
       <div className="flex flex-col gap-6">
         <ProviderPicker withKeys />
+        <RegisterImport />
 
         <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">

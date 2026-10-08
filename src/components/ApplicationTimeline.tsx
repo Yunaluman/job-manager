@@ -33,12 +33,15 @@ export function ApplicationTimeline({ application: app }: { application: Applica
   return <section className="app-panel mb-6 p-5">
     <DraftGuard dirty={Boolean(date)} />
     <h2 className="mb-3 font-semibold">Étapes documentées</h2>
-    <p className="mb-3 text-sm text-muted">Le statut ne prouve pas un envoi. Renseigne la date réelle de chaque étape.</p>
+    <p className="mb-3 text-sm text-muted">{app.register ? 'Dates issues des colonnes explicites du CSV. Pour les corriger, modifie le registre puis réimporte son aperçu.' : 'Le statut ne prouve pas un envoi. Renseigne la date réelle de chaque étape.'}</p>
     {app.eventHistoryComplete !== true && <p className="mb-3 text-sm text-amber-700 dark:text-amber-300">Historique incomplet : les étapes manquantes restent inconnues.</p>}
     {!events.length && <p className="mb-4 text-sm text-muted">Aucune étape datée renseignée.</p>}
     <ul className="mb-4 space-y-2 text-sm">{events.map((event) => <li className="flex flex-wrap items-center gap-2" key={event.id}>
       <span>{labels[event.kind]} — {fmt(event.occurredAt)}</span>
-      {event.source === 'legacy-date' && <span className="text-muted">(date déjà renseignée)</span>}
+      {event.source === 'legacy-date' && <span className="text-muted">(date déjà renseignée{app.register && ' · archive locale'})</span>}
+      {event.source === 'manual' && app.register && <span className="text-muted">(archive locale datée)</span>}
+      {event.source === 'register-date' && <span className="text-muted">(date du registre)</span>}
+      {!app.register && <>
       <button className="app-button" disabled={saving} aria-label={`Corriger ${labels[event.kind]} du ${event.occurredAt}`} onClick={() => {
         const select = () => { setEditingId(event.id); setKind(event.kind); setDate(event.occurredAt) }
         if (date) setConfirmation({ message: 'Abandonner la saisie en cours pour corriger cette étape ?', accept: select })
@@ -48,8 +51,9 @@ export function ApplicationTimeline({ application: app }: { application: Applica
         setConfirmation({ message: 'Supprimer cette étape documentée ? Le statut restera inchangé.',
           accept: () => void write(async () => { await removeApplicationEvent(app.id, event.id); if (editingId === event.id) reset() }) })
       }}>Supprimer</button>
+      </>}
     </li>)}</ul>
-    <form className="flex flex-wrap gap-3" onSubmit={(e) => {
+    {!app.register && <><form className="flex flex-wrap gap-3" onSubmit={(e) => {
       e.preventDefault()
       void write(async () => { await recordApplicationEvent(app.id, kind, date, editingId); reset() })
     }}>
@@ -66,7 +70,7 @@ export function ApplicationTimeline({ application: app }: { application: Applica
       const save = () => void write(() => updateApplication(app.id, { eventHistoryComplete: complete }))
       if (complete) setConfirmation({ message: 'Confirmer que toutes les étapes connues de ce dossier sont renseignées ?', accept: save })
       else save()
-    }} />Toutes les étapes connues sont renseignées</label>
+    }} />Toutes les étapes connues sont renseignées</label></>}
     <h3 className="mt-5 mb-2 font-semibold">Analyses et lettres liées ({analyses.length})</h3>
     {!analyses.length && <p className="text-sm text-muted">Aucune analyse ou lettre liée à ce dossier.</p>}
     {analyses.map((analysis) => <details key={analysis.id} className="mb-2"><summary className="cursor-pointer text-sm">{analysis.kind === 'lettre' ? 'Lettre' : 'Analyse CV'} — {fmt(analysis.date)}</summary><p className="mt-2 whitespace-pre-wrap break-words text-sm">{analysis.result}</p></details>)}
