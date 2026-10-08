@@ -17,6 +17,7 @@ Open the printed loopback URL. API requests require the current per-process sess
 ## Features
 
 - Dashboard, application table/kanban, follow-up dates and status history.
+- Daily actions, a decision queue and in-app deadline notifications; see [planning behavior and roadmap](docs/actions-and-notifications.md).
 - Offer extraction with a local heuristic or a provider-assisted request.
 - Local PDF/DOCX/TXT text extraction for CVs.
 - CV review and draft cover letters, using manual copy/paste or an explicit API request.
@@ -46,7 +47,7 @@ SQLite secure-delete is enabled for future changes. Migration does not guarantee
 
 ## Backups
 
-JSON snapshots include applications, analyses, CV/profile and public provider settings, without saved credentials. Excel exports contain applications only. Legacy JSON-array import replaces applications after confirmation and a verified encrypted backup. Full snapshots restore into a new database with the supplied CLI; see [the persistence and restoration guide](docs/persistence-lot-2.md).
+Portable v3 JSON snapshots include applications, analyses, CV/profile, public provider settings, AI monitoring, actions and notification read states, without saved credentials. Versions 1/2 restore with empty planning collections; old-format exports refuse to omit existing planning data. Excel exports contain applications only. Legacy JSON-array import replaces applications after confirmation and a verified encrypted backup. Full snapshots restore into a new database with the supplied CLI; see [the persistence and restoration guide](docs/persistence-lot-2.md).
 
 Use “Sauvegarder la base chiffrée” in Settings for a verified online SQLite backup, encrypted with Windows DPAPI and including protected credentials. Copy verified encrypted backups to a separate protected location for disk-loss recovery. Raw copying during use can omit WAL changes. Do not commit databases or backups to Git.
 
