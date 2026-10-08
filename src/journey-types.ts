@@ -1,4 +1,5 @@
 export interface Criterion { id: string; label: string; importance: 'required' | 'preferred' }
 export interface Offer { id: string; company: string; title: string; text: string; url: string; note: string; createdAt: string; updatedAt: string; decision: 'pending' | 'go' | 'later' | 'rejected'; applicationId?: string; decisions: { at: string; decision: Offer['decision']; reason: string }[] }
 export interface Qualification { id: string; offerId: string; offerText: string; cvText: string; createdAt: string; cvVersionId?: string; entries: { criterionId: string; label: string; importance: Criterion['importance']; result: 'met' | 'unmet' | 'unknown'; justification: string; provenance: 'manual' }[]; analysis?: { text: string; score: number | null; mode: 'manual' | 'api'; model: string } }
-export interface JourneyState { offers: Offer[]; criteria: Criterion[]; qualifications: Qualification[]; documents: unknown[]; documentVersions: unknown[]; submissions: unknown[] }
+export interface JourneyState { offers: Offer[]; criteria: Criterion[]; qualifications: Qualification[]; documents: JobDocument[]; documentVersions: DocumentVersion[]; submissions: unknown[] }
+import type { JobDocument, DocumentVersion } from './document-types'
