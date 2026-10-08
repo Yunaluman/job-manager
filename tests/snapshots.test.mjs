@@ -10,6 +10,8 @@ import { exportSnapshot, restoreSnapshot, validateSnapshot } from '../server/sna
 import { createWindowsProtector } from '../server/credentials.mjs'
 import { createEncryptedBackup, restoreEncryptedBackup } from '../server/backups.mjs'
 import { createMonitoring, monitoringSnapshot } from '../server/ai-monitoring.mjs'
+import { previewRegister, reconcileRegister } from '../server/register-csv.mjs'
+import { csvFor, row as registerRow } from './helpers/register-fixtures.mjs'
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'jobpilot-snapshot-'))
@@ -17,8 +19,9 @@ function fixture(t) {
   db.pragma('journal_mode = WAL')
   initializeDatabase(db)
   createWriteCoordinator(db)
-  db.prepare('INSERT INTO applications VALUES (?, ?)').run('app', JSON.stringify({ id: 'app', company: 'Fixture' }))
-  db.prepare('INSERT INTO analyses VALUES (?, ?)').run('analysis', JSON.stringify({ id: 'analysis', result: 'Fixture analysis' }))
+  db.prepare('INSERT INTO applications VALUES (?, ?)').run('app', JSON.stringify({ id: 'app', company: 'Fixture', eventHistoryComplete: false,
+    events: [{ id: 'sent', kind: 'sent', occurredAt: '2026-01-01', source: 'manual' }, { id: 'interview', kind: 'interview', occurredAt: '2026-01-05', source: 'manual' }] }))
+  db.prepare('INSERT INTO analyses VALUES (?, ?)').run('analysis', JSON.stringify({ id: 'analysis', applicationId: 'app', result: 'Fixture analysis' }))
   const settings = { cvText: 'Fixture CV', profileName: 'Fixture Name', keys: { mistral: 'never-export-this' }, keyStatus: { mistral: true } }
   t.after(() => {
     db.close()
@@ -57,8 +60,41 @@ test('tampered backups fail before creating a destination', (t) => {
   assert.throws(() => validateSnapshot({ ...snapshot, version: 2 }))
 })
 
+test('v1 restoration preserves dated milestones, links and untouched legacy incomplete histories', (t) => {
+  const { db, directory, settings } = fixture(t)
+  const legacy = { id: 'legacy', status: 'refusee', appliedAt: '2025-01-01', history: [{ date: '2025-02-01', event: 'old unstructured note' }] }
+  db.prepare('INSERT INTO applications VALUES (?, ?)').run(legacy.id, JSON.stringify(legacy))
+  const snapshot = exportSnapshot(db, settings, 1)
+  const destination = join(directory, 'v1-events-restored.db')
+  restoreSnapshot(snapshot, destination)
+  const restored = new Database(destination, { readonly: true })
+  try {
+    assert.deepEqual(exportSnapshot(restored, snapshot.payload.settings, 1).payload, snapshot.payload)
+    assert.deepEqual(JSON.parse(restored.prepare('SELECT data FROM applications WHERE id = ?').get('legacy').data), legacy)
+    assert.equal(JSON.parse(restored.prepare('SELECT data FROM analyses').get().data).applicationId, 'app')
+  } finally { restored.close() }
+})
+
+test('portable v1/v2 restore read-only register provenance and original cells exactly', (t) => {
+  const { db, directory, settings } = fixture(t)
+  const csv = csvFor([registerRow({ statut: 'ecarte', date_candidature: '', date_reponse: '' })])
+  const [app] = reconcileRegister(previewRegister(csv, []), [], [{ rowKey: '1', targetId: null }])
+  db.prepare('INSERT INTO applications VALUES (?, ?)').run(app.id, JSON.stringify(app))
+  for (const version of [1, 2]) {
+    const snapshot = exportSnapshot(db, settings, version)
+    const destination = join(directory, `register-v${version}.db`)
+    assert.equal(restoreSnapshot(snapshot, destination).applications, 2)
+    const restored = new Database(destination, { readonly: true })
+    try { assert.deepEqual(JSON.parse(restored.prepare('SELECT data FROM applications WHERE id = ?').get(app.id).data), JSON.parse(JSON.stringify(app))) }
+    finally { restored.close() }
+  }
+})
+
 test('real DPAPI online backup restores WAL data and protected credentials', { skip: process.platform !== 'win32' }, async (t) => {
   const { db, directory } = fixture(t)
+  const csv = csvFor([registerRow()])
+  const [register] = reconcileRegister(previewRegister(csv, []), [], [{ rowKey: '1', targetId: null }])
+  db.prepare('INSERT INTO applications VALUES (?, ?)').run(register.id, JSON.stringify(register))
   const monitoring = createMonitoring(db)
   monitoring.finish(monitoring.begin({ purpose: 'cv-analysis', provider: 'mistral', model: 'fixture-model' }), { status: 'uncertain', errorKind: 'timeout', secret: 'fixture-secret' })
   monitoring.setBudget({ monthlyLimitCents: 1500 })
@@ -73,12 +109,13 @@ test('real DPAPI online backup restores WAL data and protected credentials', { s
   assert.equal(text.includes('fixture-secret'), false)
   const destination = join(directory, 'encrypted-restored.db')
   const envelope = JSON.parse(text)
-  assert.equal(restoreEncryptedBackup(envelope, protector, destination).applications, 1)
+  assert.equal(restoreEncryptedBackup(envelope, protector, destination).applications, 2)
   const restored = new Database(destination)
   try {
     assert.equal(restored.prepare('SELECT COUNT(*) AS count FROM analyses').get().count, 1)
     assert.equal(protector.unprotect(restored.prepare('SELECT encrypted FROM credentials').get().encrypted), 'fixture-secret')
     assert.deepEqual(monitoringSnapshot(restored), originalMonitoring)
+    assert.deepEqual(JSON.parse(restored.prepare('SELECT data FROM applications WHERE id = ?').get(register.id).data), JSON.parse(JSON.stringify(register)))
   } finally { restored.close() }
   assert.throws(() => restoreEncryptedBackup(envelope, protector, destination), { code: 'EEXIST' })
 })

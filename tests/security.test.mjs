@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { createApp, initializeDatabase } from '../server/app.mjs'
 import { createCredentialStore, createWindowsProtector, assertDatabaseIntegrity, PROVIDERS } from '../server/credentials.mjs'
+import { csvFor, row as registerRow } from './helpers/register-fixtures.mjs'
+import { createWriteCoordinator } from '../server/writes.mjs'
 
 // Test-only protector: production has no fallback to this implementation.
 function testProtector() {
@@ -105,12 +107,12 @@ test('failed credential replacement retains the previous protected key', () => {
     assert.equal(store.get('mistral'), 'fixture-old-secret')
   } finally { db.close() }
 })
-async function fixture(t, fetchProvider) {
+async function fixture(t, fetchProvider, options = {}) {
   const db = legacyDb({ keys: { mistral: 'fixture-provider-secret' }, baseUrl: PROVIDERS.mistral, model: 'fixture-model' })
   const server = createServer()
   await new Promise((done) => server.listen(0, '127.0.0.1', done))
   const port = server.address().port
-  const result = createApp({ db, protector: testProtector(), port, fetchProvider })
+  const result = createApp({ db, protector: options.protector ?? testProtector(), port, fetchProvider, backupDirectory: options.backupDirectory })
   server.on('request', result.app)
   t.after(async () => { server.closeAllConnections(); await new Promise((done) => server.close(done)); db.close() })
   function call(url, { method = 'GET', body, headers = {}, authenticated = true, raw } = {}) {
@@ -128,8 +130,105 @@ async function fixture(t, fetchProvider) {
       req.end(raw ?? (body === undefined ? undefined : JSON.stringify(body)))
     })
   }
-  return { ...result, call, port }
+  return { ...result, call, port, db }
 }
+
+function backupFixture(t) {
+  const directory = mkdtempSync(join(tmpdir(), 'jobpilot-register-'))
+  t.after(() => { for (const name of readdirSync(directory)) unlinkSync(join(directory, name)); rmdirSync(directory) })
+  return directory
+}
+
+test('CSV preview is read-only and import is backed up, atomic, stable and replayable', async (t) => {
+  const directory = backupFixture(t)
+  const { call } = await fixture(t, undefined, { backupDirectory: directory })
+  const local = { id: 'local', company: 'Fixture Équipe', title: 'Développeur', location: 'Paris', history: [], createdAt: '2025-01-01', status: 'entretien' }
+  await call('/api/applications/local', { method: 'PUT', body: local })
+  await call('/api/analyses/cv', { method: 'PUT', body: { id: 'cv', kind: 'cv', applicationId: 'local' } })
+  const csv = csvFor([registerRow()])
+  for (const endpoint of ['preview', 'import']) assert.equal((await call(`/api/register/${endpoint}`, { method: 'POST', body: { csv }, authenticated: false })).status, 401)
+  const preview = JSON.parse((await call('/api/register/preview', { method: 'POST', body: { csv, sourceName: 'fixture.csv' } })).text)
+  assert.equal(preview.revision, 2)
+  assert.equal(JSON.parse((await call('/api/state')).text).revision, 2)
+  assert.equal(readdirSync(directory).length, 0)
+  const body = { csv, sourceName: 'fixture.csv', resolutions: [{ rowKey: '1', targetId: 'local' }] }
+  const headers = { 'X-JobPilot-Revision': '2', 'X-JobPilot-Operation': randomUUID() }
+  const imported = await call('/api/register/import', { method: 'POST', body, headers })
+  assert.equal(imported.status, 200)
+  const ack = JSON.parse(imported.text)
+  assert.equal(ack.revision, 3)
+  assert.equal(ack.result.backupVerified, true)
+  assert.equal(ack.result.applications[0].id, 'local')
+  assert.equal(ack.result.applications[0].status, 'refusee')
+  assert.equal(ack.result.applications[0].register.raw.fichier_cv, 'original/CV.docx')
+  assert.equal(JSON.parse((await call('/api/state')).text).analyses[0].applicationId, 'local')
+  const backups = readdirSync(directory)
+  assert.equal(backups.length, 1)
+  assert.deepEqual(JSON.parse((await call('/api/register/import', { method: 'POST', body, headers })).text), ack)
+  assert.deepEqual(readdirSync(directory), backups)
+  const stripped = { ...ack.result.applications[0], register: undefined, company: 'tampered' }
+  assert.equal((await call('/api/applications/local', { method: 'PUT', body: stripped })).status, 400)
+  assert.equal((await call('/api/applications/local', { method: 'DELETE' })).status, 400)
+  assert.equal((await call('/api/applications', { method: 'PUT', body: [] })).status, 400)
+  assert.equal((await call('/api/applications/forged', { method: 'PUT', body: { ...ack.result.applications[0], id: 'forged' } })).status, 400)
+  assert.equal(JSON.parse((await call('/api/state')).text).revision, 3)
+  const changed = { ...body, csv: csvFor([registerRow({ statut: 'sans_reponse' })]) }
+  assert.equal((await call('/api/register/import', { method: 'POST', body: changed, headers })).status, 409)
+  assert.deepEqual(readdirSync(directory), backups)
+  const outdated = JSON.parse((await call('/api/register/preview', { method: 'POST', body: { csv: changed.csv } })).text)
+  await call('/api/settings', { method: 'PUT', body: { profileName: 'Concurrent edit' } })
+  assert.equal((await call('/api/register/import', { method: 'POST', body: changed, headers: { 'X-JobPilot-Revision': String(outdated.revision) } })).status, 409)
+  assert.deepEqual(readdirSync(directory), backups)
+})
+
+test('failed CSV backup or database writes leave all data, revision and receipts intact', async (t) => {
+  const directory = backupFixture(t)
+  const protector = testProtector()
+  const { call, db } = await fixture(t, undefined, { backupDirectory: directory, protector })
+  const body = { csv: csvFor([registerRow()]), resolutions: [{ rowKey: '1', targetId: null }] }
+  const protect = protector.protect
+  protector.protect = () => { throw new Error('fixture backup failure') }
+  assert.equal((await call('/api/register/import', { method: 'POST', body })).status, 500)
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM applications').get().n, 0)
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM persistence_receipts').get().n, 0)
+  assert.equal(db.prepare('SELECT revision FROM persistence_revision').get().revision, 0)
+  assert.equal(readdirSync(directory).length, 0)
+  protector.protect = protect
+  db.exec("CREATE TRIGGER reject_import BEFORE INSERT ON applications BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END")
+  assert.equal((await call('/api/register/import', { method: 'POST', body })).status, 500)
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM applications').get().n, 0)
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM persistence_receipts').get().n, 0)
+  assert.equal(db.prepare('SELECT revision FROM persistence_revision').get().revision, 0)
+  assert.equal(readdirSync(directory).length, 1)
+  db.exec('DROP TRIGGER reject_import')
+  assert.equal((await call('/api/register/import', { method: 'POST', body })).status, 200)
+})
+
+test('a concurrent confirmed write during backup aborts CSV import instead of overwriting fresh data', async (t) => {
+  const directory = backupFixture(t)
+  const protector = testProtector()
+  const { call, db } = await fixture(t, undefined, { backupDirectory: directory, protector })
+  const writes = createWriteCoordinator(db)
+  const protect = protector.protect
+  let injected = false
+  protector.protect = (value) => {
+    if (!injected) {
+      injected = true
+      writes.commit({ operation: randomUUID(), expectedRevision: 0, method: 'PUT', path: '/api/applications/concurrent', body: { id: 'concurrent' } }, () => {
+        const app = { id: 'concurrent', company: 'Concurrent edit' }
+        db.prepare('INSERT INTO applications VALUES (?, ?)').run(app.id, JSON.stringify(app))
+        return app
+      })
+    }
+    return protect(value)
+  }
+  const response = await call('/api/register/import', { method: 'POST', body: { csv: csvFor([registerRow()]), resolutions: [{ rowKey: '1', targetId: null }] } })
+  assert.equal(response.status, 409)
+  const state = JSON.parse((await call('/api/state')).text)
+  assert.equal(state.revision, 1)
+  assert.deepEqual(state.applications, [{ id: 'concurrent', company: 'Concurrent edit' }])
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM persistence_receipts').get().n, 1)
+})
 test('all data, credential and AI routes require session authorization', async (t) => {
   const { call } = await fixture(t)
   for (const [url, method] of [['settings', 'GET'], ['applications', 'GET'], ['analyses', 'GET'], ['settings', 'PUT'], ['settings/migrate', 'POST'], ['credentials/mistral', 'PUT'], ['credentials/mistral', 'DELETE'], ['ai', 'POST']]) {
@@ -142,6 +241,36 @@ test('all data, credential and AI routes require session authorization', async (
   assert.deepEqual(JSON.parse(res.text).keyStatus, { mistral: true, zai: false })
   assert.equal(res.headers['cache-control'], 'no-store')
   assert.equal(res.headers['access-control-allow-origin'], undefined)
+})
+
+test('HTTP event writes reject invalid calendars and duplicate ids without advancing the revision', async (t) => {
+  const { call } = await fixture(t)
+  const event = { id: 'event', kind: 'interview', occurredAt: '2026-02-28', source: 'manual' }
+  for (const events of [[{ ...event, occurredAt: '2026-02-30' }], [event, event], [{ ...event, kind: 'guess' }]]) {
+    assert.equal((await call('/api/applications/fixture', { method: 'PUT', body: { id: 'fixture', events } })).status, 400)
+    assert.equal(JSON.parse((await call('/api/state')).text).revision, 0)
+  }
+  assert.equal((await call('/api/applications/fixture', { method: 'PUT', body: { id: 'fixture', events: [event], eventHistoryComplete: false } })).status, 200)
+  const state = JSON.parse((await call('/api/state')).text)
+  assert.deepEqual(state.applications[0].events, [event])
+  assert.equal(state.revision, 1)
+  assert.equal((await call('/api/applications', { method: 'PUT', body: [{ id: 'fixture', events: [{ ...event, occurredAt: '2026-02-30' }] }] })).status, 400)
+  assert.equal(JSON.parse((await call('/api/state')).text).applications[0].events[0].occurredAt, '2026-02-28')
+})
+
+test('CV and letter links are persisted and cannot be fabricated for missing applications', async (t) => {
+  const { call } = await fixture(t)
+  assert.equal((await call('/api/analyses/one', { method: 'PUT', body: { id: 'one', applicationId: 'missing' } })).status, 400)
+  assert.equal(JSON.parse((await call('/api/state')).text).revision, 0)
+  await call('/api/applications/app', { method: 'PUT', body: { id: 'app' } })
+  for (const kind of ['cv', 'lettre']) {
+    const analysis = { id: kind, kind, applicationId: 'app', result: 'fixture' }
+    assert.equal((await call(`/api/analyses/${kind}`, { method: 'PUT', body: analysis })).status, 200)
+  }
+  await call('/api/applications/app', { method: 'DELETE' })
+  const state = JSON.parse((await call('/api/state')).text)
+  assert.deepEqual(state.analyses.map((item) => item.applicationId), ['app', 'app'])
+  assert.equal((await call('/api/analyses/cv', { method: 'PUT', body: { ...state.analyses[0], result: 'corrected' } })).status, 200)
 })
 test('host, origin, fetch metadata, token and content type reject hostile requests', async (t) => {
   const { call, port } = await fixture(t)
