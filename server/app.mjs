@@ -10,6 +10,7 @@ import { previewRegister, reconcileRegister, validateRegisterProjection } from '
 import { initializeActions, planningSnapshot, registerActionRoutes } from './actions.mjs'
 import { initializeJourney, journeySnapshot, registerJourneyRoutes } from './journey.mjs'
 import { registerDocumentRoutes } from './documents.mjs'
+import { cvText } from '../src/cv-document.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -123,6 +124,13 @@ export function createApp({ db, protector, port, development = false, fetchProvi
       if (body?.register !== undefined || (previous && JSON.parse(previous.data).register)) throw Object.assign(new Error('Dossier issu du CSV en lecture seule. Modifie le registre puis importe son aperçu.'), { status: 400 })
     }
     const validateLink = (item) => {
+      if (table === 'analyses' && item.cvVersionId !== undefined) {
+        const row = typeof item.cvVersionId === 'string' && db.prepare('SELECT data FROM document_versions WHERE id = ?').get(item.cvVersionId)
+        const version = row && JSON.parse(row.data)
+        const documentRow = version && db.prepare('SELECT data FROM documents WHERE id = ?').get(version.documentId)
+        const document = documentRow && JSON.parse(documentRow.data)
+        if (!version || version.templateVersion !== 'single-column-cv-v1' || item.cvText !== cvText(version.content, version.layout) || typeof item.offerText !== 'string' || item.offerText.length > 100000 || (document.applicationId && document.applicationId !== item.applicationId)) throw Object.assign(new Error('Sources du CV incohérentes.'), { status: 400 })
+      }
       if (table !== 'analyses' || item.applicationId === undefined) return
       if (typeof item.applicationId !== 'string' || !item.applicationId || item.applicationId.length > 200) throw Object.assign(new Error('Lien de candidature invalide.'), { status: 400 })
       if (db.prepare('SELECT id FROM applications WHERE id = ?').get(item.applicationId)) return

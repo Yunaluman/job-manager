@@ -9,7 +9,7 @@ export function saveOffer(input: Pick<Offer, 'id' | 'company' | 'title' | 'text'
 export function saveCriteria(criteria: Criterion[]) {
   return dataStore.mutate<Criterion[]>(() => ({ method: 'PUT', path: 'criteria', body: criteria, apply: (state, saved) => ({ ...state, journey: { ...state.journey, criteria: saved } }) }))
 }
-export function qualifyOffer(offerId: string, input: Pick<Qualification, 'id' | 'entries' | 'analysis' | 'cvVersionId'>) {
+export function qualifyOffer(offerId: string, input: Pick<Qualification, 'id' | 'entries' | 'analysis' | 'cvVersionId'> & Partial<Pick<Qualification, 'cvText' | 'offerText'>>) {
   return dataStore.mutate<Qualification>(() => ({ method: 'POST', path: `offers/${encodeURIComponent(offerId)}/qualification`, body: input, apply: (state, saved) => ({ ...state, journey: { ...state.journey, qualifications: [...state.journey.qualifications, saved] } }) }))
 }
 export function decideOffer(offerId: string, decision: 'go' | 'later' | 'rejected', reason: string) {

@@ -4,6 +4,9 @@ export const DOCUMENT_STATUS = { draft: 'Brouillon', ready: 'Prêt', archived: '
 export function saveDocument(id: string, input: DocumentInput) {
   return dataStore.mutate<{ document: JobDocument; version: DocumentVersion }>(() => ({ method: 'POST', path: `documents/${encodeURIComponent(id)}/versions`, body: input, apply: (state, result) => ({ ...state, journey: { ...state.journey, documents: [...state.journey.documents.filter((doc) => doc.id !== id), result.document], documentVersions: [...state.journey.documentVersions, result.version] } }) }))
 }
+export function cloneCv(id: string, versionId: string, applicationId: string) {
+  return dataStore.mutate<{ document: JobDocument; version: DocumentVersion }>(() => ({ method: 'POST', path: `documents/${encodeURIComponent(id)}/clone`, body: { versionId, applicationId }, apply: (state, result) => ({ ...state, journey: { ...state.journey, documents: [...state.journey.documents, result.document], documentVersions: [...state.journey.documentVersions, result.version] } }) }))
+}
 export async function documentBytes(version: DocumentVersion, format: 'pdf' | 'docx') {
   const token = document.querySelector<HTMLMetaElement>('meta[name="jobpilot-session"]')?.content
   if (!token) throw new Error('Session locale absente.')
@@ -13,5 +16,5 @@ export async function documentBytes(version: DocumentVersion, format: 'pdf' | 'd
 }
 export async function downloadDocument(version: DocumentVersion, format: 'pdf' | 'docx') {
   const blob = await documentBytes(version, format), url = URL.createObjectURL(blob), link = document.createElement('a')
-  link.href = url; link.download = `jobpilot-lettre-v${version.number}.${format}`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+  link.href = url; link.download = `jobpilot-${version.templateVersion === 'single-column-cv-v1' ? 'cv' : 'lettre'}-v${version.number}.${format}`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
