@@ -20,7 +20,7 @@ import {
   buildPrompt,
   analyzeWithApi,
   extractScore,
-  activeKey,
+  hasApiKey,
 } from '../cv'
 import { ProviderPicker } from '../components/ProviderPicker'
 
@@ -55,7 +55,7 @@ export function CvPage() {
   }, [linked])
 
   const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
-  const key = activeKey(settings)
+  const key = hasApiKey(settings)
   const jobTitle = offer.trim().split('\n')[0].slice(0, 80) || 'Sans titre'
 
   async function copyPrompt() {

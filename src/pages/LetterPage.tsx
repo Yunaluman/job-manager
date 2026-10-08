@@ -9,7 +9,7 @@ import {
   deleteAnalysis,
   buildLetterPrompt,
   callApi,
-  activeKey,
+  hasApiKey,
 } from '../cv'
 import { ProviderPicker } from '../components/ProviderPicker'
 
@@ -130,7 +130,7 @@ export function LetterPage() {
             >
               <ClipboardPaste size={15} /> Coller la lettre
             </button>
-            {activeKey(settings) && (
+            {hasApiKey(settings) && (
               <button
                 onClick={generate}
                 disabled={!ready || loading}

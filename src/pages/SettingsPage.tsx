@@ -62,9 +62,10 @@ export function SettingsPage() {
           </div>
           <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
             Tout est stocké localement dans une base SQLite
-            (%LOCALAPPDATA%\JobPilot\jobpilot.db) — la sauvegarder = copier ce fichier. L'export
-            JSON est ré-importable ; l'Excel sert à consulter/partager. Les clés API ne sont jamais
-            incluses dans les exports.
+            (%LOCALAPPDATA%\JobPilot\jobpilot.db). L'export JSON contient les candidatures ;
+            l'Excel sert à consulter/partager. Ces exports ne contiennent pas les clés API.
+            Pour copier la base, ferme d'abord JobPilot ; une copie pendant son utilisation
+            peut être incomplète.
           </p>
         </section>
       </div>
