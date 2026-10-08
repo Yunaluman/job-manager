@@ -23,18 +23,21 @@ import {
   hasApiKey,
 } from '../cv'
 import { ProviderPicker } from '../components/ProviderPicker'
+import { DraftGuard } from '../components/DraftGuard'
+import { useModalFocus } from '../useModalFocus'
 
 const areaClass =
-  'w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
+  'app-field'
 
 function scoreColor(score: number) {
-  if (score >= 75) return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-  if (score >= 50) return 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-  return 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+  if (score >= 75) return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+  if (score >= 50) return 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
+  return 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30'
 }
 
 export function CvPage() {
   const settings = useSettings()
+  const [cvDraft, setCvDraft] = useState<string | null>(null)
   const analyses = useAnalyses().filter((a) => a.kind !== 'lettre')
   const [offer, setOffer] = useState('')
   const [copied, setCopied] = useState(false)
@@ -45,6 +48,8 @@ export function CvPage() {
   const [extracting, setExtracting] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+  const modalRef = useModalFocus(pasting, () => setPasting(false))
+
 
   // Arrivée depuis une fiche candidature (?app=id) : pré-remplit l'offre
   const { app: appId } = useSearch({ strict: false }) as { app?: string }
@@ -64,12 +69,14 @@ export function CvPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  function savePasted() {
+  async function savePasted() {
     if (!pasteText.trim()) return
-    const a = addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel' })
+    try {
+    const a = await addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel' })
     setSelected(a.id)
     setPasteText('')
     setPasting(false)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
   }
 
   async function runApi() {
@@ -77,8 +84,12 @@ export function CvPage() {
     setError('')
     try {
       const result = await analyzeWithApi(settings.cvText, offer, settings)
-      const a = addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api' })
+      setPasteText(result)
+      setPasting(true)
+      const a = await addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api' })
       setSelected(a.id)
+      setPasteText('')
+      setPasting(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur inconnue.')
     } finally {
@@ -95,7 +106,9 @@ export function CvPage() {
     try {
       const text = await extractTextFromFile(file)
       if (!text) throw new Error('Aucun texte trouvé dans ce fichier (CV scanné en image ?).')
-      saveSettings({ cvText: text })
+      setCvDraft(text)
+      await saveSettings({ cvText: text })
+      setCvDraft((current) => current === text ? null : current)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de lire ce fichier.")
     } finally {
@@ -113,17 +126,18 @@ export function CvPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-1 flex items-center gap-2 text-2xl font-bold tracking-tight">
-        <Sparkles size={22} className="text-indigo-400" /> Amélioration CV
+      <DraftGuard dirty={cvDraft !== null || pasteText.length > 0} />
+      <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <Sparkles size={22} className="text-indigo-700 dark:text-indigo-400" /> Amélioration CV
       </h1>
-      <p className="mb-8 text-sm text-slate-400">
+      <p className="mb-8 text-sm text-muted">
         Un recruteur senior (IA) note ton CV sur 100 face à une offre précise et te dit quoi améliorer.
       </p>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
           <section>
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">
+            <label className="mb-1.5 block text-xs font-medium text-muted">
               Ton CV — dépose le fichier ou colle le texte (mémorisé)
             </label>
             <button
@@ -141,8 +155,8 @@ export function CvPage() {
               }}
               className={`mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm transition-colors ${
                 dragOver
-                  ? 'border-indigo-400 bg-indigo-500/10 text-indigo-300'
-                  : 'border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                  ? 'border-indigo-400 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300'
+                  : 'border-line text-muted hover:border-slate-500 hover:text-ink'
               }`}
             >
               {extracting ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
@@ -153,13 +167,18 @@ export function CvPage() {
             <textarea
               className={areaClass}
               rows={8}
-              value={settings.cvText}
-              onChange={(e) => saveSettings({ cvText: e.target.value })}
+              value={cvDraft ?? settings.cvText}
+              onChange={(e) => setCvDraft(e.target.value)}
               placeholder="…ou colle ici le contenu texte de ton CV"
             />
+            {cvDraft !== null && <button className="mt-2 text-sm underline" onClick={async () => {
+              const submitted = cvDraft
+              try { await saveSettings({ cvText: submitted }); setCvDraft((current) => current === submitted ? null : current); setError('') }
+              catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
+            }}>Enregistrer le CV</button>}
           </section>
           <section>
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">Fiche de poste</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted">Fiche de poste</label>
             <textarea
               className={areaClass}
               rows={9}
@@ -173,15 +192,15 @@ export function CvPage() {
             <button
               onClick={copyPrompt}
               disabled={!ready}
-              className="flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:border-slate-500 disabled:opacity-40"
+              className="flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink hover:border-slate-500 disabled:opacity-40"
             >
-              {copied ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+              {copied ? <Check size={15} className="text-emerald-700 dark:text-emerald-400" /> : <Copy size={15} />}
               {copied ? 'Copié !' : 'Copier le prompt (Claude / ChatGPT / Mistral)'}
             </button>
             <button
               onClick={() => setPasting(true)}
               disabled={!ready}
-              className="flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:border-slate-500 disabled:opacity-40"
+              className="flex items-center gap-2 rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink hover:border-slate-500 disabled:opacity-40"
             >
               <ClipboardPaste size={15} /> Coller le résultat
             </button>
@@ -189,40 +208,40 @@ export function CvPage() {
               <button
                 onClick={runApi}
                 disabled={!ready || loading}
-                className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 disabled:opacity-50"
               >
                 {loading ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
                 {loading ? 'Analyse en cours…' : `Analyser (${settings.model})`}
               </button>
             )}
           </div>
-          {error && <p className="text-sm text-rose-400">{error}</p>}
+          {error && <p className="text-sm text-rose-700 dark:text-rose-400">{error}</p>}
 
           <ProviderPicker withKeys />
         </div>
 
         <div className="flex flex-col gap-4">
-          <section className="rounded-xl border border-slate-800 bg-slate-900/60">
-            <div className="border-b border-slate-800 px-4 py-3 text-sm font-semibold">
+          <section className="rounded-xl border border-line bg-surface">
+            <div className="border-b border-line px-4 py-3 text-sm font-semibold">
               Analyses ({analyses.length})
             </div>
             {analyses.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-slate-500">
+              <p className="px-4 py-6 text-center text-sm text-muted">
                 Aucune analyse pour l'instant.
               </p>
             ) : (
-              <ul className="max-h-56 divide-y divide-slate-800 overflow-y-auto">
+              <ul className="max-h-56 divide-y divide-line overflow-y-auto">
                 {analyses.map((a) => (
                   <li
                     key={a.id}
                     onClick={() => setSelected(a.id)}
-                    className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-slate-800/40 ${
+                    className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-subtle ${
                       selected === a.id ? 'bg-indigo-500/10' : ''
                     }`}
                   >
                     <div className="min-w-0">
                       <div className="truncate font-medium">{a.jobTitle}</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-muted">
                         {new Date(a.date).toLocaleDateString('fr-FR')} · {a.mode === 'api' ? 'Mistral' : 'manuel'}
                       </div>
                     </div>
@@ -235,9 +254,9 @@ export function CvPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          if (confirm('Supprimer cette analyse ?')) deleteAnalysis(a.id)
+                          if (confirm('Supprimer cette analyse ?')) void deleteAnalysis(a.id).catch(() => {})
                         }}
-                        className="text-slate-600 hover:text-rose-400"
+                        className="text-muted hover:text-rose-700 dark:text-rose-400"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -249,7 +268,7 @@ export function CvPage() {
           </section>
 
           {current && (
-            <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <section className="rounded-xl border border-line bg-surface p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold">{current.jobTitle}</h3>
                 {current.score !== null && (
@@ -258,7 +277,7 @@ export function CvPage() {
                   </span>
                 )}
               </div>
-              <div className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
+              <div className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-secondary">
                 {current.result}
               </div>
             </section>
@@ -272,8 +291,9 @@ export function CvPage() {
           onClick={() => setPasting(false)}
         >
           <div
+            ref={modalRef} role="dialog" aria-modal="true" aria-label="Coller la réponse de l’IA"
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl"
+            className="app-modal max-w-lg"
           >
             <h2 className="mb-4 text-lg font-semibold">Coller la réponse de l'IA</h2>
             <textarea
@@ -285,12 +305,12 @@ export function CvPage() {
               placeholder="Colle ici la réponse complète de Claude / ChatGPT / Mistral…"
             />
             <div className="mt-4 flex justify-end gap-3">
-              <button onClick={() => setPasting(false)} className="rounded-lg px-4 py-2 text-sm text-slate-400 hover:text-slate-100">
+              <button onClick={() => setPasting(false)} className="rounded-lg px-4 py-2 text-sm text-muted hover:text-ink">
                 Annuler
               </button>
               <button
                 onClick={savePasted}
-                className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400"
+                className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700"
               >
                 Enregistrer l'analyse
               </button>

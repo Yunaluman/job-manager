@@ -1,9 +1,7 @@
 // Provider credentials stay on the local server; the UI receives presence flags only.
-import { useSyncExternalStore } from 'react'
-import { apiGet, apiSend, apiRequest } from './api'
+import { dataStore, useData, usePersistenceStatus, useInitializationError } from './data'
+import { apiRequest } from './api'
 
-const LEGACY_SETTINGS = 'jobpilot.settings.v1'
-const LEGACY_ANALYSES = 'jobpilot.cv-analyses.v1'
 
 export interface Settings {
   keyStatus: Record<string, boolean>
@@ -47,18 +45,6 @@ export interface CvAnalysis {
   kind?: 'cv' | 'lettre' // absent = 'cv' (données antérieures)
 }
 
-const DEFAULT_SETTINGS: Settings = {
-  keyStatus: {},
-  baseUrl: PROVIDER_PRESETS[0].baseUrl,
-  model: PROVIDER_PRESETS[0].model,
-  cvText: '',
-  profileName: '',
-  profileEmail: '',
-  profilePhone: '',
-  profileCity: '',
-  profileTitle: '',
-}
-
 // Économie de tokens : plafonds sur ce qu'on envoie (≈ 4 caractères / token).
 // Un CV tient largement en 9000 caractères ; au-delà c'est du bruit d'extraction.
 const MAX_CV_CHARS = 9000
@@ -74,87 +60,38 @@ export function providerId(s: Settings): string {
 export function hasApiKey(s: Settings): boolean {
   return s.keyStatus?.[providerId(s)] === true
 }
-let settingsCache: Settings = DEFAULT_SETTINGS
-let analysesCache: CvAnalysis[] = []
-let settingsError = ''
-const listeners = new Set<() => void>()
-const notify = () => listeners.forEach((l) => l())
-const subscribe = (cb: () => void) => {
-  listeners.add(cb)
-  return () => {
-    listeners.delete(cb)
-  }
+export const useSettings = () => useData().settings
+export const useAnalyses = () => useData().analyses
+export function useSettingsError() {
+  const status = usePersistenceStatus()
+  const initializationError = useInitializationError()
+  return initializationError || status.error
 }
 
-// Chargement initial + migration unique depuis l'ancien localStorage
-async function init(attempt = 0) {
-  try {
-    const [loadedSettings, analyses] = await Promise.all([
-      apiGet<Partial<Settings>>('settings'),
-      apiGet<CvAnalysis[]>('analyses'),
-    ])
-    let settings = loadedSettings
-    settingsCache = { ...DEFAULT_SETTINGS, ...loadedSettings }
-    analysesCache = analyses
-    notify()
-    const legacySettings = localStorage.getItem(LEGACY_SETTINGS)
-    if (legacySettings) {
-      // Remove the browser copy only after verified server persistence.
-      settings = await apiRequest<Settings>('POST', 'settings/migrate', JSON.parse(legacySettings))
-      localStorage.removeItem(LEGACY_SETTINGS)
-    }
-    const legacyAnalyses = localStorage.getItem(LEGACY_ANALYSES)
-    let allAnalyses = analyses
-    if (analyses.length === 0 && legacyAnalyses) {
-      allAnalyses = JSON.parse(legacyAnalyses)
-      if (allAnalyses.length > 0) apiSend('PUT', 'analyses', allAnalyses)
-      localStorage.removeItem(LEGACY_ANALYSES)
-    }
-    settingsCache = {
-      ...DEFAULT_SETTINGS,
-      ...Object.fromEntries(Object.entries(settings).filter(([, v]) => v)),
-    }
-    analysesCache = allAnalyses.sort((a, b) => b.date.localeCompare(a.date))
-    settingsError = ''
-    notify()
-  } catch (e) {
-    settingsError = e instanceof Error ? e.message : 'Chargement ou migration impossible.'
-    notify()
-    if (attempt < 1) setTimeout(() => void init(attempt + 1), 1500)
-  }
-}
-void init()
-
-export const useSettings = () => useSyncExternalStore(subscribe, () => settingsCache)
-export const useAnalyses = () => useSyncExternalStore(subscribe, () => analysesCache)
-export const useSettingsError = () => useSyncExternalStore(subscribe, () => settingsError)
-
-export function saveSettings(patch: Partial<Settings>) {
-  settingsCache = { ...settingsCache, ...patch }
-  notify()
-  apiSend('PUT', 'settings', patch)
+export async function saveSettings(patch: Partial<Settings>) {
+  return dataStore.mutate<Settings>(() => ({ method: 'PUT', path: 'settings', body: patch,
+    apply: (state, settings) => ({ ...state, settings: { ...state.settings, ...settings } }) }))
 }
 
 export async function saveCredential(provider: string, key?: string) {
-  const saved = await apiRequest<Settings>(key === undefined ? 'DELETE' : 'PUT', `credentials/${provider}`, key === undefined ? undefined : { key })
-  settingsCache = { ...DEFAULT_SETTINGS, ...saved }
-  notify()
+  return dataStore.mutate<Settings>(() => ({ method: key === undefined ? 'DELETE' : 'PUT', path: `credentials/${provider}`,
+    body: key === undefined ? undefined : { key },
+    apply: (state, settings) => ({ ...state, settings: { ...state.settings, ...settings } }) }))
 }
 
-export function addAnalysis(a: Omit<CvAnalysis, 'id' | 'date'>): CvAnalysis {
+export async function addAnalysis(a: Omit<CvAnalysis, 'id' | 'date'>): Promise<CvAnalysis> {
   const full: CvAnalysis = { ...a, id: crypto.randomUUID(), date: new Date().toISOString() }
-  analysesCache = [full, ...analysesCache]
-  notify()
-  apiSend('PUT', `analyses/${full.id}`, full)
-  return full
+  return dataStore.mutate<CvAnalysis>(() => ({ method: 'PUT', path: `analyses/${full.id}`, body: full,
+    apply: (state, saved) => ({ ...state, analyses: [saved, ...state.analyses] }) }))
 }
 
-export function deleteAnalysis(id: string) {
-  analysesCache = analysesCache.filter((a) => a.id !== id)
-  notify()
-  apiSend('DELETE', `analyses/${id}`)
+export async function deleteAnalysis(id: string) {
+  await dataStore.mutate<{ id: string }>(() => ({ method: 'DELETE', path: `analyses/${id}`,
+    apply: (state, saved) => {
+      if (saved.id !== id) throw new Error('Confirmation de suppression invalide.')
+      return { ...state, analyses: state.analyses.filter((analysis) => analysis.id !== id) }
+    } }))
 }
-
 export function extractScore(text: string): number | null {
   const m = text.match(/(\d{1,3})\s*\/\s*100/)
   if (!m) return null
@@ -227,10 +164,13 @@ ${clip(offer, MAX_OFFER_CHARS)}
 ${clip(s.cvText, MAX_CV_CHARS)}`
 }
 
-export async function callApi(prompt: string, s: Settings, maxTokens = 1600, temperature = 0.3): Promise<string> {
-  const data = await apiRequest<{ content: string }>('POST', 'ai', { prompt, baseUrl: s.baseUrl, model: s.model, maxTokens, temperature })
-  return data.content
+export async function callApi(prompt: string, s: Settings, purpose: 'offer-extraction' | 'cv-analysis' | 'letter-generation', maxTokens = 1600, temperature = 0.3): Promise<string> {
+  try {
+    const data = await apiRequest<{ content: string; monitoringWarning?: string }>('POST', 'ai', { prompt, baseUrl: s.baseUrl, model: s.model, purpose, maxTokens, temperature })
+    window.dispatchEvent(new CustomEvent('jobpilot-ai-updated', { detail: data.monitoringWarning ?? '' }))
+    return data.content
+  } catch (error) { window.dispatchEvent(new CustomEvent('jobpilot-ai-updated')); throw error }
 }
 
 export const analyzeWithApi = (cv: string, offer: string, s: Settings) =>
-  callApi(buildPrompt(cv, offer), s)
+  callApi(buildPrompt(cv, offer), s, 'cv-analysis')
