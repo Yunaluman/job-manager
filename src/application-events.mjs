@@ -44,7 +44,7 @@ export function funnelMetrics(applications) {
     offers: applications.filter((app) => has(app, 'offer')).length,
     refusals: applications.filter((app) => has(app, 'refusal')).length,
     unknownHistory: applications.filter((app) => app.eventHistoryComplete !== true).length,
-    interviewRate: sent.length ? Math.round(sent.filter((app) => has(app, 'interview')).length / sent.length * 100) : 0,
-    responseRate: sent.length ? Math.round(sent.filter((app) => responses.includes(app)).length / sent.length * 100) : 0,
+    interviewRate: sent.length ? Math.round(sent.filter((app) => has(app, 'interview')).length / sent.length * 100) : null,
+    responseRate: sent.length ? Math.round(sent.filter((app) => responses.includes(app)).length / sent.length * 100) : null,
   }
 }

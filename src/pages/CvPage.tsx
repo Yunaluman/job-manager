@@ -23,6 +23,7 @@ import {
   hasApiKey,
 } from '../cv'
 import { ProviderPicker } from '../components/ProviderPicker'
+import { AnalysisApplicationLink } from '../components/AnalysisApplicationLink'
 import { DraftGuard } from '../components/DraftGuard'
 import { useModalFocus } from '../useModalFocus'
 
@@ -281,6 +282,7 @@ export function CvPage() {
                   </span>
                 )}
               </div>
+              <AnalysisApplicationLink key={current.id} analysis={current} />
               <div className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-secondary">
                 {current.result}
               </div>

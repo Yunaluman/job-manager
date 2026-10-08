@@ -21,9 +21,11 @@ their denominator and only outcomes documented for those same applications as
 their numerator. An interview with no known send date remains visible in the
 interview counter but does not distort that rate. Refusal never removes a documented
 send or an earlier interview. Missing milestones are unknown, not negative outcomes.
+Rates without a documented send denominator display an em dash, not a synthetic zero.
 
 CV analyses and letter drafts created from an application route preserve its
-`applicationId`. Existing unlinked analyses are not matched by guessed text. Deleting
+`applicationId`. Existing unlinked analyses can be explicitly attached or detached
+using the candidature selector on their detail view; they are never matched by guessed text. Deleting
 an application preserves existing analysis records and their historical identifier;
 the server rejects newly fabricated links to absent applications.
 
