@@ -4,15 +4,18 @@ import type { Settings, CvAnalysis } from './cv'
 import { apiGet, apiWrite, refreshSession } from './api'
 import { createConfirmedStore } from './persistence-core.mjs'
 import { migrateLegacyList } from './legacy-migration.mjs'
+import type { AiConfig } from './ai-monitoring'
 
 export interface DataState {
   revision: number
   applications: Application[]
   analyses: CvAnalysis[]
   settings: Settings
+  aiConfig: AiConfig
 }
 const initialState: DataState = {
   revision: 0, applications: [], analyses: [],
+  aiConfig: { monthlyLimitCents: null, tariffs: [] },
   settings: { keyStatus: {}, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', cvText: '', profileName: '', profileEmail: '', profilePhone: '', profileCity: '', profileTitle: '' },
 }
 export const dataStore = createConfirmedStore<DataState>({
@@ -20,6 +23,7 @@ export const dataStore = createConfirmedStore<DataState>({
   load: async () => {
     await refreshSession()
     const loaded = await apiGet<DataState>('state')
+    if (!loaded.aiConfig || !Array.isArray(loaded.aiConfig.tariffs) || (loaded.aiConfig.monthlyLimitCents !== null && (!Number.isSafeInteger(loaded.aiConfig.monthlyLimitCents) || loaded.aiConfig.monthlyLimitCents < 0))) throw new Error('Configuration IA absente ou invalide. Redémarre JobPilot puis synchronise.')
     return { ...loaded, settings: { ...initialState.settings, ...loaded.settings } }
   },
   persist: (operation, revision) => apiWrite(operation.method, operation.path, operation.body, revision),

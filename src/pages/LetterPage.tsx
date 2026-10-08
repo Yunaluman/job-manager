@@ -61,7 +61,7 @@ export function LetterPage() {
     setError('')
     try {
       // ~380 mots max pour le corps : 1100 tokens suffisent largement
-      const result = await callApi(buildLetterPrompt(settings, offer, points), settings, 1100)
+      const result = await callApi(buildLetterPrompt(settings, offer, points), settings, 'letter-generation', 1100)
       setPasteText(result)
       setPasting(true)
       await save(result, 'api')
