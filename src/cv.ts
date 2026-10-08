@@ -164,10 +164,13 @@ ${clip(offer, MAX_OFFER_CHARS)}
 ${clip(s.cvText, MAX_CV_CHARS)}`
 }
 
-export async function callApi(prompt: string, s: Settings, maxTokens = 1600, temperature = 0.3): Promise<string> {
-  const data = await apiRequest<{ content: string }>('POST', 'ai', { prompt, baseUrl: s.baseUrl, model: s.model, maxTokens, temperature })
-  return data.content
+export async function callApi(prompt: string, s: Settings, purpose: 'offer-extraction' | 'cv-analysis' | 'letter-generation', maxTokens = 1600, temperature = 0.3): Promise<string> {
+  try {
+    const data = await apiRequest<{ content: string; monitoringWarning?: string }>('POST', 'ai', { prompt, baseUrl: s.baseUrl, model: s.model, purpose, maxTokens, temperature })
+    window.dispatchEvent(new CustomEvent('jobpilot-ai-updated', { detail: data.monitoringWarning ?? '' }))
+    return data.content
+  } catch (error) { window.dispatchEvent(new CustomEvent('jobpilot-ai-updated')); throw error }
 }
 
 export const analyzeWithApi = (cv: string, offer: string, s: Settings) =>
-  callApi(buildPrompt(cv, offer), s)
+  callApi(buildPrompt(cv, offer), s, 'cv-analysis')
