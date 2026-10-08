@@ -17,6 +17,8 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useApplications, updateApplication, deleteApplication, isDue } from '../storage'
+import { firstSendDate } from '../application-events.mjs'
+import { ApplicationTimeline } from '../components/ApplicationTimeline'
 import type { Status } from '../types'
 import { STATUSES, STATUS_LABELS } from '../types'
 import { StatusBadge } from '../components/StatusBadge'
@@ -143,13 +145,15 @@ export function ApplicationDetail() {
         )}
       </div>
 
+      <ApplicationTimeline key={app.id} application={app} />
+
       <div className="grid gap-6 md:grid-cols-2">
         <section className="flex flex-col gap-3 app-panel p-5">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-sm font-semibold">Informations</h2>
             <StatusBadge status={app.status} />
           </div>
-          <Info icon={<CalendarDays size={14} />} label="Postulée le" value={fmt(app.appliedAt)} />
+          <Info icon={<CalendarDays size={14} />} label="Premier envoi documenté" value={fmt(firstSendDate(app))} />
           <div className="flex items-center gap-2.5 text-sm">
             <span className="text-muted">
               <AlarmClock size={14} />

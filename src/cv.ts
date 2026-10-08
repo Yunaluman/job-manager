@@ -43,6 +43,7 @@ export interface CvAnalysis {
   score: number | null
   mode: 'api' | 'manuel'
   kind?: 'cv' | 'lettre' // absent = 'cv' (données antérieures)
+  applicationId?: string // Explicit candidature link; never inferred from generated text.
 }
 
 // Économie de tokens : plafonds sur ce qu'on envoie (≈ 4 caractères / token).

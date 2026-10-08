@@ -38,7 +38,16 @@ export interface HistoryEntry {
   event: string
 }
 
+export interface ApplicationEvent {
+  id: string
+  kind: 'sent' | 'response' | 'interview' | 'offer' | 'refusal'
+  occurredAt: string
+  source: 'manual' | 'legacy-date'
+}
+
 export interface Application {
+  events?: ApplicationEvent[]
+  eventHistoryComplete?: boolean
   id: string
   company: string
   title: string

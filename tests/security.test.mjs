@@ -143,6 +143,36 @@ test('all data, credential and AI routes require session authorization', async (
   assert.equal(res.headers['cache-control'], 'no-store')
   assert.equal(res.headers['access-control-allow-origin'], undefined)
 })
+
+test('HTTP event writes reject invalid calendars and duplicate ids without advancing the revision', async (t) => {
+  const { call } = await fixture(t)
+  const event = { id: 'event', kind: 'interview', occurredAt: '2026-02-28', source: 'manual' }
+  for (const events of [[{ ...event, occurredAt: '2026-02-30' }], [event, event], [{ ...event, kind: 'guess' }]]) {
+    assert.equal((await call('/api/applications/fixture', { method: 'PUT', body: { id: 'fixture', events } })).status, 400)
+    assert.equal(JSON.parse((await call('/api/state')).text).revision, 0)
+  }
+  assert.equal((await call('/api/applications/fixture', { method: 'PUT', body: { id: 'fixture', events: [event], eventHistoryComplete: false } })).status, 200)
+  const state = JSON.parse((await call('/api/state')).text)
+  assert.deepEqual(state.applications[0].events, [event])
+  assert.equal(state.revision, 1)
+  assert.equal((await call('/api/applications', { method: 'PUT', body: [{ id: 'fixture', events: [{ ...event, occurredAt: '2026-02-30' }] }] })).status, 400)
+  assert.equal(JSON.parse((await call('/api/state')).text).applications[0].events[0].occurredAt, '2026-02-28')
+})
+
+test('CV and letter links are persisted and cannot be fabricated for missing applications', async (t) => {
+  const { call } = await fixture(t)
+  assert.equal((await call('/api/analyses/one', { method: 'PUT', body: { id: 'one', applicationId: 'missing' } })).status, 400)
+  assert.equal(JSON.parse((await call('/api/state')).text).revision, 0)
+  await call('/api/applications/app', { method: 'PUT', body: { id: 'app' } })
+  for (const kind of ['cv', 'lettre']) {
+    const analysis = { id: kind, kind, applicationId: 'app', result: 'fixture' }
+    assert.equal((await call(`/api/analyses/${kind}`, { method: 'PUT', body: analysis })).status, 200)
+  }
+  await call('/api/applications/app', { method: 'DELETE' })
+  const state = JSON.parse((await call('/api/state')).text)
+  assert.deepEqual(state.analyses.map((item) => item.applicationId), ['app', 'app'])
+  assert.equal((await call('/api/analyses/cv', { method: 'PUT', body: { ...state.analyses[0], result: 'corrected' } })).status, 200)
+})
 test('host, origin, fetch metadata, token and content type reject hostile requests', async (t) => {
   const { call, port } = await fixture(t)
   for (const headers of [{ Host: 'attacker.example' }, { Host: `127.0.0.1:${port + 1}` }, { Origin: 'https://attacker.example' }, { Origin: 'null' }, { 'Sec-Fetch-Site': 'cross-site' }, { 'Sec-Fetch-Site': 'same-site' }]) {

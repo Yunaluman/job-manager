@@ -59,7 +59,7 @@ export function CvPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linked])
 
-  const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0
+  const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0 && (!appId || Boolean(linked))
   const key = hasApiKey(settings)
   const jobTitle = offer.trim().split('\n')[0].slice(0, 80) || 'Sans titre'
 
@@ -72,7 +72,8 @@ export function CvPage() {
   async function savePasted() {
     if (!pasteText.trim()) return
     try {
-    const a = await addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel' })
+    if (appId && !linked) throw new Error('Candidature liée introuvable. La saisie est conservée.')
+    const a = await addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel', applicationId: linked?.id })
     setSelected(a.id)
     setPasteText('')
     setPasting(false)
@@ -80,13 +81,14 @@ export function CvPage() {
   }
 
   async function runApi() {
+    if (!ready) return
     setLoading(true)
     setError('')
     try {
       const result = await analyzeWithApi(settings.cvText, offer, settings)
       setPasteText(result)
       setPasting(true)
-      const a = await addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api' })
+      const a = await addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api', applicationId: linked?.id })
       setSelected(a.id)
       setPasteText('')
       setPasting(false)
@@ -127,6 +129,8 @@ export function CvPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <DraftGuard dirty={cvDraft !== null || pasteText.length > 0} />
+      {linked && <p className="mb-3 text-sm text-muted">Analyse liée à {linked.company} — {linked.title}. Elle sera visible dans ce dossier.</p>}
+      {appId && !linked && <p role="alert" className="mb-3 text-sm text-rose-700 dark:text-rose-300">Le dossier lié est introuvable. Retourne aux candidatures avant de lancer une analyse.</p>}
       <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
         <Sparkles size={22} className="text-indigo-700 dark:text-indigo-400" /> Amélioration CV
       </h1>
