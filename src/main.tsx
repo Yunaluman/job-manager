@@ -18,6 +18,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { AiActivityPage } from './pages/AiActivityPage'
 import { ActionsPage } from './pages/ActionsPage'
 import { PlanningClock } from './PlanningClock'
+import { OffersPage } from './pages/OffersPage'
 
 const rootRoute = createRootRoute({ component: Layout })
 
@@ -64,6 +65,7 @@ const profileRoute = createRoute({
 })
 
 const routeTree = rootRoute.addChildren([
+  createRoute({ getParentRoute: () => rootRoute, path: '/offres', component: OffersPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/actions', component: ActionsPage, validateSearch: (search: Record<string, unknown>) => ({ action: typeof search.action === 'string' ? search.action : undefined }) }),
   createRoute({ getParentRoute: () => rootRoute, path: '/activite-ia', component: AiActivityPage }),
   dashboardRoute,
