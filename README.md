@@ -1,103 +1,65 @@
-# JobPilot — Suivi de candidatures
+# JobPilot — local application tracking
 
-Application locale pour piloter une recherche d'emploi : suivi des candidatures (LinkedIn, HelloWork, Indeed…), relances à ne pas rater, et analyse de CV par IA face à une offre précise.
+JobPilot tracks job applications, follow-ups, CV analyses and draft cover letters. It runs locally on Windows with Node.js 22+ and pnpm 9+.
 
-## Démarrage
+## Run
 
-```bash
-pnpm install
-pnpm dev        # lance l'API SQLite (127.0.0.1:3001) + le front (http://localhost:5173)
-pnpm build      # type-check + build de production dans dist/
+```sh
+pnpm install --frozen-lockfile
+pnpm dev       # One process: Express + Vite on http://127.0.0.1:5173
+pnpm build     # TypeScript check and production bundle
+pnpm preview   # Express serves the bundle on http://127.0.0.1:3001
+pnpm test      # Security regression tests, including real Windows DPAPI
 ```
 
-Prérequis : Node 22+, pnpm 9+.
+Open the printed loopback URL. API requests require the current per-process session token supplied in the app's HTML; after restarting the server, reload existing browser tabs. Running Vite directly does not supply a session and is unsupported. Occupied ports cause startup to fail; no pre-existing service is reused or stopped.
 
-## Fonctionnalités
+## Features
 
-### Tableau de bord (`/`)
-- Compteurs : candidatures envoyées, entretiens, offres, refus, taux d'entretien.
-- **Relances à faire** : toute candidature dont la date de « prochaine action » est atteinte ou dépassée remonte ici automatiquement (sauf si refusée ou offre reçue).
-- **Par plateforme** : candidatures envoyées, entretiens, taux de réponse et taux d'entretien par source (LinkedIn, HelloWork…) — pour savoir où investir son temps.
+- Dashboard, application table/kanban, follow-up dates and status history.
+- Offer extraction with a local heuristic or a provider-assisted request.
+- Local PDF/DOCX/TXT text extraction for CVs.
+- CV review and draft cover letters, using manual copy/paste or an explicit API request.
+- Profile and provider settings, application-only JSON and Excel exports.
 
-### Candidatures (`/candidatures`)
-- Vue **tableau** (tri visuel, liens vers les offres) et vue **kanban** (glisser-déposer une carte pour changer son statut).
-- **Ajout express** : coller le texte d'une offre → entreprise, poste, lieu, salaire et source extraits automatiquement (IA si clé configurée, heuristique locale sinon), formulaire pré-rempli à valider.
-- Relance proposée par défaut à J+7 ; passage en « Relancée » = prochaine relance replanifiée automatiquement.
-- Statuts : À postuler → Postulée → Relancée → Entretien → Offre / Refusée.
-- Chaque changement de statut est enregistré dans l'historique de la candidature.
-- **Fiche détail** (clic sur une ligne) : toutes les infos, changement de statut rapide, et timeline de l'historique.
-- Recherche par entreprise, poste ou lieu ; tri par colonne (3e clic = ordre par défaut).
+AI output needs human review. A generated score is an estimate, not measured compatibility with an employer's ATS. Saving a draft or changing a status does not prove an application was sent.
 
-### Amélioration CV (`/cv`)
-Un « recruteur senior » (IA) note ton CV sur 100 face à une fiche de poste : points forts/faibles, reformulations prêtes à copier, mots-clés ATS manquants, verdict.
+## Data and credentials
 
-Le CV se dépose en fichier (PDF/DOCX/TXT, extraction du texte 100% locale) ou se colle en texte ; il est mémorisé pour les analyses suivantes. L'analyse inclut un score **Compatibilité ATS /100** : couverture des mots-clés de l'offre, mots-clés critiques absents et où les insérer.
+The database is `%LOCALAPPDATA%\JobPilot\jobpilot.db`. `JOBPILOT_DATA_DIR` overrides the data directory for isolated tests; `JOBPILOT_PORT` overrides the loopback port. CVs, profile details, applications and analyses remain plaintext local data.
 
-Deux modes :
-1. **Sans API (gratuit)** : « Copier le prompt » → coller dans Claude / ChatGPT / Mistral (abonnement chat) → « Coller le résultat » pour l'archiver. La note /100 est extraite automatiquement.
-2. **API directe** : fournisseur configurable (presets Mistral et Z.ai/GLM, ou toute API au format OpenAI via URL personnalisée) → analyse en un clic.
+Saved provider keys are ciphertext in the separate `credentials` table, protected with **Windows DPAPI / CurrentUser**. Encryption and decryption use Windows PowerShell without profiles, with hidden child windows and piped input/output. Keys are never passed as command-line arguments. The server returns key-presence flags, not saved keys or their suffixes. A newly entered key necessarily exists briefly in its password field and is sent to the local server for protection.
 
-### Lettre de motivation (`/lettre`)
-Lettre complète prête à envoyer : en-tête avec les coordonnées du profil, date, objet, puis un corps de 280-380 mots appuyé uniquement sur le CV mémorisé (rien d'inventé). Le style imite les vraies lettres de l'utilisateur (ton personnel et sincère, parcours atypique assumé, projection dans l'évolution) plutôt qu'une lettre type robotique. Champ « points à mettre en avant » optionnel. Deux modes (prompt à copier ou génération API), lettres archivées avec bouton « Copier la lettre ».
+On startup, legacy SQLite keys (`keys`, `apiKey`, `mistralKey`) are encrypted, read back and decrypted for comparison inside a transaction. Only a successful comparison allows removal of the plaintext fields. Failure or conflicting keys aborts migration and preserves the previous data. Legacy `jobpilot.settings.v1` browser data is removed only after the migration endpoint confirms success. Unsupported legacy provider keys are retained encrypted but cannot be used for requests.
 
-### Mon profil (`/profil`)
-- **Identité** : nom, poste recherché, email, téléphone, ville — utilisé pour l'en-tête des lettres.
-- **CV** : dépôt de fichier (PDF/DOCX/TXT) ou texte collé, partagé par les modules CV et Lettre.
+Only the server sends provider keys. Allowed destinations are fixed HTTPS endpoints for Mistral and Z.ai; redirects and arbitrary/custom endpoints are refused. Each explicit request may transmit the CV, offer text and profile information included in its prompt to the selected provider. No claim of regulatory compliance follows from the provider label.
 
-### Paramètres (`/parametres`)
-- **Fournisseur IA** : dropdown Mistral / Z.ai, modèle éditable, une clé par fournisseur (le dropdown fait suivre la bonne clé).
-- **Mes données** : export Excel (.xlsx, dates réelles, pour consulter/partager), export JSON (sauvegarde complète ré-importable), import JSON.
+## Local access boundaries
 
-## Où sont mes données ?
+Startup and credential migration first require a successful SQLite integrity check. A corrupted database is refused rather than migrated through unreliable indexes. Explicit offline migration (`node scripts/migrate-local-credentials.mjs <database-path>`) creates and verifies a DPAPI-encrypted consistent recovery snapshot before changing legacy credentials.
 
-Dans une base **SQLite locale** : `%LOCALAPPDATA%\JobPilot\jobpilot.db` (Windows), servie par un petit serveur Node (`server/index.mjs`) qui n'écoute que sur `127.0.0.1` — inaccessible depuis le réseau.
+The HTTP server binds to `127.0.0.1`. Host and Origin checks reject foreign sites and DNS-rebinding hosts. All API routes require a random session token, and write requests require JSON. Cross-origin CORS access and embedding are disabled. Development uses the same guarded HTTP server as the API; Vite's permissive CORS mode is disabled.
 
-- Les données **survivent au nettoyage du navigateur** et sont indépendantes du navigateur utilisé.
-- Sauvegarde = copier ce fichier `.db` (ou export JSON depuis la sidebar).
-- Au premier lancement, les anciennes données localStorage sont **migrées automatiquement** vers SQLite.
-- La clé API Mistral est stockée dans cette base, n'est **jamais incluse dans les exports**, et n'est envoyée qu'à `api.mistral.ai` en HTTPS.
-- Honnêteté sur le modèle de menace : un fichier local reste lisible par un malware ayant accès au disque — la vraie protection, c'est le chiffrement du disque (BitLocker) et un poste sain.
+This protects against other websites interacting with the local app. **It is not an identity boundary against programs running under your Windows account**: such programs can access the loopback bootstrap page and can use your DPAPI rights. Malicious browser extensions, compromised app code and account-level malware remain outside this protection. This is not a multi-user service or a deployable SaaS authentication scheme.
+
+SQLite secure-delete is enabled for future changes. Migration does not guarantee forensic erasure of older WAL pages, browser files, filesystem snapshots or external backups. DPAPI ciphertext is tied to the Windows account; copying the database to another account does not produce usable credentials. Keep provider account recovery available rather than relying on an exported database for key portability.
+
+## Backups
+
+JSON and Excel exports contain **applications only**, without saved credentials. They do not back up the CV, profile or analyses. JSON import currently replaces all applications; import reliability is a separate planned lot.
+
+For a full file backup, stop JobPilot cleanly first. An active SQLite WAL database can have recent changes in `.db-wal`; copying only the `.db` file during use may lose data. A full database copy contains personal information and DPAPI-protected credentials, so keep it private. Do not commit it to Git.
 
 ## Architecture
 
-```
-server/
-└── index.mjs             # API Express + SQLite (better-sqlite3), 127.0.0.1:3001
-src/
-├── main.tsx              # Bootstrap + routes TanStack Router (/, /candidatures, /cv)
-├── types.ts              # Modèle Application, statuts, libellés/couleurs
-├── api.ts                # Client HTTP vers le serveur local (écritures optimistes)
-├── storage.ts            # Persistance candidatures + exports Excel/JSON
-├── cv.ts                 # Module CV : réglages, analyses, prompt recruteur+ATS, appel IA
-├── parse.ts              # Ajout express : extraction d'offre (IA ou heuristique)
-├── extract.ts            # Extraction texte des fichiers CV (PDF/DOCX/TXT, local)
-├── components/
-│   ├── Layout.tsx        # Sidebar + navigation + boutons export/import
-│   ├── ApplicationForm.tsx  # Modal création/édition
-│   └── StatusBadge.tsx
-└── pages/
-    ├── Dashboard.tsx
-    ├── Applications.tsx  # Vues tableau + kanban
-    └── CvPage.tsx
-```
+- `server/index.mjs`: loopback HTTP lifecycle, Vite development middleware or production assets.
+- `server/app.mjs`: guarded API and server-only provider calls.
+- `server/credentials.mjs` / `server/dpapi.ps1`: credential protection and verified migration.
+- `src/api.ts`: session-authenticated local requests.
+- `src/storage.ts`: application cache and exports.
+- `src/cv.ts`: public settings, analyses and prompt builders.
+- `tests/security.test.mjs`: migration rollback, access checks, destination restrictions and DPAPI.
 
-Stack : Vite · React 19 · TypeScript · TanStack Router · Tailwind CSS v4 · pnpm.
+Future changes must use typed branches such as `fix/local-credentials-and-access`, one PR per lot, and review/fix before the next lot. Do not deploy this local application as a public service by changing its bind address.
 
-**Principe clé** : toute la persistance passe par `storage.ts` et `cv.ts` (hooks `useApplications`, `useSettings`, `useAnalyses` basés sur `useSyncExternalStore`, cache mémoire + écritures optimistes vers l'API). L'UI ne parle jamais au serveur directement — pour passer en SaaS, il suffira de pointer `api.ts` vers un serveur distant avec authentification.
-
-## Dépannage
-
-**`pnpm dev` échoue / s'arrête tout seul** : dans 99% des cas, une instance précédente tourne encore et occupe le port 3001 ou 5173 (sous Windows, fermer le terminal ne tue pas toujours les processus enfants). Le serveur affiche maintenant un message clair avec la commande de nettoyage :
-
-```powershell
-Get-NetTCPConnection -LocalPort 3001,5173 -State Listen | % { Stop-Process -Id $_.OwningProcess -Force }
-```
-
-## Branches git
-
-- `main` : version stable.
-- `development` : branche de travail — développer ici, fusionner dans `main` quand c'est stable.
-
-## Roadmap
-
-- [ ] Gestion utilisateurs + backend (version SaaS) — **la clé API devra alors passer côté serveur**
+References: [Microsoft DPAPI](https://learn.microsoft.com/en-us/dotnet/standard/security/how-to-use-data-protection), [Vite server security options](https://vite.dev/config/server-options).
