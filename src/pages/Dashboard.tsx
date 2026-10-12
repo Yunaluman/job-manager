@@ -1,9 +1,8 @@
-import { Link } from '@tanstack/react-router'
-import { AlertCircle, TrendingUp, Send, MessageSquare, XCircle, Trophy, Globe } from 'lucide-react'
+import { TrendingUp, Send, MessageSquare, XCircle, Trophy, Globe } from 'lucide-react'
 import type { Application } from '../types'
-import { useApplications, isDue } from '../storage'
+import { useApplications } from '../storage'
 import { funnelMetrics, applicationEvents } from '../application-events.mjs'
-import { StatusBadge } from '../components/StatusBadge'
+import { PlanningSummary } from '../components/PlanningSummary'
 
 function StatCard({
   icon,
@@ -54,7 +53,7 @@ function SourceStats({ apps }: { apps: Application[] }) {
       <div className="flex items-center gap-2 border-b border-line px-5 py-4">
         <Globe size={16} className="text-sky-700 dark:text-sky-400" />
         <h2 className="font-semibold">Par plateforme</h2>
-        <span className="ml-auto text-xs text-muted">où investir ton temps</span>
+        <span className="ml-auto text-xs text-muted">étapes documentées</span>
       </div>
       <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm">
         <thead>
@@ -96,13 +95,13 @@ function SourceStats({ apps }: { apps: Application[] }) {
 
 export function Dashboard() {
   const apps = useApplications()
-  const due = apps.filter(isDue)
   const metrics = funnelMetrics(apps)
 
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-1 text-2xl font-semibold tracking-tight sm:text-3xl">Tableau de bord</h1>
       <p className="mb-8 text-sm text-muted">Vue d'ensemble de ta recherche d'emploi.</p>
+      <PlanningSummary />
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard icon={<Send size={18} />} label="Envois datés" value={metrics.sent} accent="bg-sky-500/15 text-sky-700 dark:text-sky-300" />
@@ -110,38 +109,6 @@ export function Dashboard() {
         <StatCard icon={<Trophy size={18} />} label="Offres datées" value={metrics.offers} accent="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" />
         <StatCard icon={<XCircle size={18} />} label="Refus datés" value={metrics.refusals} accent="bg-rose-500/15 text-rose-700 dark:text-rose-300" />
         <StatCard icon={<TrendingUp size={18} />} label="Taux entretien (%)" value={metrics.interviewRate} accent="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" />
-      </div>
-
-      <div className="app-panel">
-        <div className="flex items-center gap-2 border-b border-line px-5 py-4">
-          <AlertCircle size={16} className="text-amber-700 dark:text-amber-400" />
-          <h2 className="font-semibold">Relances à faire ({due.length})</h2>
-        </div>
-        {due.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-muted">
-            Rien à relancer aujourd'hui. 🎉{' '}
-            <Link to="/candidatures" className="text-indigo-700 dark:text-indigo-400 hover:underline">
-              Voir les candidatures
-            </Link>
-          </p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {due.map((a) => (
-              <li key={a.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="font-medium">{a.company}</div>
-                  <div className="text-sm text-muted">{a.title}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-amber-700 dark:text-amber-400">
-                    prévu le {new Date(a.nextActionAt!).toLocaleDateString('fr-FR')}
-                  </span>
-                  <StatusBadge status={a.status} application={a} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
       {metrics.unknownHistory > 0 && <p className="mt-4 text-sm text-muted">Historique incomplet pour {metrics.unknownHistory} dossier(s). Les étapes non documentées ne sont pas comptées. Les taux concernent uniquement les dossiers ayant un envoi daté.</p>}
