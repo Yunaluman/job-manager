@@ -26,6 +26,9 @@ import { ProviderPicker } from '../components/ProviderPicker'
 import { AnalysisApplicationLink } from '../components/AnalysisApplicationLink'
 import { DraftGuard } from '../components/DraftGuard'
 import { useModalFocus } from '../useModalFocus'
+import { useData } from '../data'
+import { cvText } from '../cv-document.mjs'
+import type { CvContent } from '../document-types'
 
 const areaClass =
   'app-field'
@@ -55,17 +58,23 @@ export function CvPage() {
   // Arrivée depuis une fiche candidature (?app=id) : pré-remplit l'offre
   const { app: appId } = useSearch({ strict: false }) as { app?: string }
   const linked = useApplications().find((a) => a.id === appId)
+  const { journey } = useData()
+  const [cvVersionId, setCvVersionId] = useState('')
+  const cvVersions = journey.documentVersions.filter(version => version.templateVersion === 'single-column-cv-v1' && journey.documents.some(doc => doc.id === version.documentId && (!doc.applicationId || doc.applicationId === appId)))
+  const selectedCv = cvVersions.find(version => version.id === cvVersionId)
+  const selectedText = selectedCv ? cvText(selectedCv.content as CvContent, selectedCv.layout) : settings.cvText
+  const sourceFields = { cvText: selectedText, offerText: offer, ...(selectedCv ? { cvVersionId: selectedCv.id } : {}) }
   useEffect(() => {
     if (linked?.jobText && !offer.trim()) setOffer(linked.jobText)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linked])
 
-  const ready = settings.cvText.trim().length > 0 && offer.trim().length > 0 && (!appId || Boolean(linked))
+  const ready = selectedText.trim().length > 0 && offer.trim().length > 0 && (!appId || Boolean(linked))
   const key = hasApiKey(settings)
   const jobTitle = offer.trim().split('\n')[0].slice(0, 80) || 'Sans titre'
 
   async function copyPrompt() {
-    await navigator.clipboard.writeText(buildPrompt(settings.cvText, offer))
+    await navigator.clipboard.writeText(buildPrompt(selectedText, offer))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -74,7 +83,7 @@ export function CvPage() {
     if (!pasteText.trim()) return
     try {
     if (appId && !linked) throw new Error('Candidature liée introuvable. La saisie est conservée.')
-    const a = await addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel', applicationId: linked?.id })
+    const a = await addAnalysis({ jobTitle, result: pasteText, score: extractScore(pasteText), mode: 'manuel', applicationId: linked?.id, ...sourceFields })
     setSelected(a.id)
     setPasteText('')
     setPasting(false)
@@ -86,10 +95,10 @@ export function CvPage() {
     setLoading(true)
     setError('')
     try {
-      const result = await analyzeWithApi(settings.cvText, offer, settings)
+      const result = await analyzeWithApi(selectedText, offer, settings)
       setPasteText(result)
       setPasting(true)
-      const a = await addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api', applicationId: linked?.id })
+      const a = await addAnalysis({ jobTitle, result, score: extractScore(result), mode: 'api', applicationId: linked?.id, ...sourceFields })
       setSelected(a.id)
       setPasteText('')
       setPasting(false)
@@ -136,12 +145,14 @@ export function CvPage() {
         <Sparkles size={22} className="text-indigo-700 dark:text-indigo-400" /> Amélioration CV
       </h1>
       <p className="mb-8 text-sm text-muted">
-        Un recruteur senior (IA) note ton CV sur 100 face à une offre précise et te dit quoi améliorer.
+        Évaluer les correspondances, écarts et inconnues. Les notes restent indicatives ; aucune compatibilité ATS ou probabilité d’embauche n’est mesurée.
       </p>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
           <section>
+            <label className="mb-4 block text-sm">Version du CV analysée<select className="app-field" disabled={loading} value={cvVersionId} onChange={(event)=>setCvVersionId(event.target.value)}><option value="">Texte source du profil</option>{cvVersions.map(version=><option value={version.id} key={version.id}>{version.title} · v{version.number} · {new Date(version.createdAt).toLocaleDateString('fr-FR')}</option>)}</select></label>
+            {selectedCv && <details className="mb-4"><summary>Contenu exact du CV sélectionné</summary><pre className="whitespace-pre-wrap text-sm">{selectedText}</pre></details>}
             <label className="mb-1.5 block text-xs font-medium text-muted">
               Ton CV — dépose le fichier ou colle le texte (mémorisé)
             </label>

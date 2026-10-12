@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { validateDocument, validateDocumentVersion, validateDocumentLinks } from './document-model.mjs'
+import { cvText } from '../src/cv-document.mjs'
 
 export const JOURNEY_TABLES = { offers: 'offers', criteria: 'search_criteria', qualifications: 'qualifications', documents: 'documents', documentVersions: 'document_versions', submissions: 'submissions' }
 export const fail = (message) => { throw Object.assign(new Error(message), { status: 400 }) }
@@ -38,6 +39,7 @@ export function validateJourney(value) {
   }
   if (value.qualifications.some((item) => !value.offers.some((offer) => offer.id === item.offerId))) fail('Offre de qualification absente.')
   validateDocumentLinks(value)
+  if (value.qualifications.some((qualification) => qualification.cvVersionId && !value.documentVersions.some((version) => version.id === qualification.cvVersionId && version.templateVersion === 'single-column-cv-v1' && cvText(version.content, version.layout) === qualification.cvText))) fail('Version CV de qualification absente ou incohérente.')
 }
 export function restoreJourney(db, value) { validateJourney(value); initializeJourney(db); for (const [key, table] of Object.entries(JOURNEY_TABLES)) for (const row of value[key]) db.prepare(`INSERT INTO ${table} VALUES (?, ?)`).run(row.id, JSON.stringify(row)) }
 export const emptyJourney = () => Object.fromEntries(Object.keys(JOURNEY_TABLES).map((key) => [key, []]))
@@ -55,14 +57,17 @@ export function registerJourneyRoutes(app, db, confirmWrite) {
   })
   app.post('/api/offers/:id/qualification', (req, res) => confirmWrite(req, res, () => {
     const offer = get('offers', req.params.id); if (!offer) fail('Offre introuvable.')
-    if (!exact(req.body, ['id', 'entries', 'analysis', 'cvVersionId', 'cvText'])) fail('Qualification invalide.')
+    if (!exact(req.body, ['id', 'entries', 'analysis', 'cvVersionId', 'cvText', 'offerText'])) fail('Qualification invalide.')
     const settings = JSON.parse(db.prepare("SELECT value FROM settings WHERE key = 'main'").get()?.value ?? '{}')
-    const saved = { ...req.body, offerId: offer.id, offerText: offer.text, cvText: settings.cvText ?? '', createdAt: new Date().toISOString() }; validateQualification(saved)
+    const selectedCv = req.body.cvVersionId ? get('document_versions', req.body.cvVersionId) : undefined
+    if (req.body.cvVersionId && selectedCv?.templateVersion !== 'single-column-cv-v1') fail('Version CV introuvable.')
+    if (selectedCv) { const document = get('documents', selectedCv.documentId); if (document.applicationId && document.applicationId !== offer.applicationId) fail('Le CV appartient à un autre dossier.') }
+    const saved = { ...req.body, offerId: offer.id, offerText: offer.text, cvText: selectedCv ? cvText(selectedCv.content, selectedCv.layout) : settings.cvText ?? '', createdAt: new Date().toISOString() }; validateQualification(saved)
     if (get('qualifications', saved.id)) fail('Cette qualification existe déjà.')
     if (journeySnapshot(db).qualifications.length >= 10000) fail('Limite de qualifications atteinte.')
     const criteria = journeySnapshot(db).criteria
     if (saved.entries.length !== criteria.length || saved.entries.some((entry) => !criteria.some((item) => item.id === entry.criterionId && item.label === entry.label && item.importance === entry.importance))) fail('Critères modifiés. Synchronise avant de qualifier.')
-    if (saved.cvVersionId || req.body.cvText !== undefined) fail('Sélection de CV structuré indisponible dans ce lot.')
+    if (req.body.cvText !== undefined && req.body.cvText !== saved.cvText || req.body.offerText !== undefined && req.body.offerText !== offer.text) fail('Sources modifiées depuis l’analyse. Reprends les sources avant de qualifier.')
     put('qualifications', saved); return saved
   }))
   app.post('/api/offers/:id/decision', (req, res) => confirmWrite(req, res, () => {
