@@ -30,7 +30,7 @@ export const dataStore = createConfirmedStore<DataState>({
   load: async () => {
     await refreshSession()
     const loaded = await apiGet<DataState>('state')
-    if (!loaded.journey || !Array.isArray(loaded.journey.offers) || !Array.isArray(loaded.journey.criteria) || !Array.isArray(loaded.journey.qualifications)) throw new Error('Parcours indisponible. Redémarre puis synchronise.')
+    if (!loaded.journey || !['offers','criteria','qualifications','documents','documentVersions','submissions'].every(key=>Array.isArray(loaded.journey[key as keyof JourneyState]))) throw new Error('Parcours indisponible. Redémarre puis synchronise.')
     if (!Array.isArray(loaded.actions) || !Array.isArray(loaded.notificationReads)) throw new Error('Planning absent. Redémarre JobPilot puis synchronise.')
     loaded.actions.forEach(validateAction); loaded.notificationReads.forEach(validateNotificationReadState)
     if (!loaded.aiConfig || !Array.isArray(loaded.aiConfig.tariffs) || (loaded.aiConfig.monthlyLimitCents !== null && (!Number.isSafeInteger(loaded.aiConfig.monthlyLimitCents) || loaded.aiConfig.monthlyLimitCents < 0))) throw new Error('Configuration IA absente ou invalide. Redémarre JobPilot puis synchronise.')
