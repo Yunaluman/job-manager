@@ -19,6 +19,6 @@ Portable snapshots default to v3, retaining both planning collections. v1/v2 res
 ## Subsequent lots
 
 1. Targeting and offer qualification: explicit search criteria, constraints, priorities and exclusion reasons; manual offer collection first.
-2. Strategy review: compare periods, targets and sources with sample sizes, delays and missing data visible. Counts alone do not justify where to invest time.
+2. Strategy review: implemented as a read-only factual comparison of periods, existing job titles and sources, with sample sizes, delays and missing data visible. See [strategy review](strategy-review.md). Counts alone do not justify where to invest time.
 
 Employer-response, interview and offer-expiry notifications require explicit, sufficiently precise source data. A status must never fabricate an event. Each future lot requires its own reviewed/fixed PR.

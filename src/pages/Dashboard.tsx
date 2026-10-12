@@ -6,6 +6,7 @@ import { PlanningSummary } from '../components/PlanningSummary'
 import { JourneySummary } from '../components/JourneySummary'
 import { useData } from '../data'
 import { withDeclaredSends } from '../journey-progress.mjs'
+import { Link } from '@tanstack/react-router'
 
 function StatCard({
   icon,
@@ -105,6 +106,7 @@ export function Dashboard() {
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-1 text-2xl font-semibold tracking-tight sm:text-3xl">Tableau de bord</h1>
       <p className="mb-8 text-sm text-muted">Vue d'ensemble de ta recherche d'emploi.</p>
+      <Link to="/bilan" className="app-button mb-6 inline-flex">Bilan : comparer deux périodes</Link>
       <PlanningSummary />
       <JourneySummary />
 

@@ -18,6 +18,7 @@ Open the printed loopback URL. API requests require the current per-process sess
 
 - Dashboard, application table/kanban, follow-up dates and status history.
 - Daily actions, a decision queue and in-app deadline notifications; see [planning behavior and roadmap](docs/actions-and-notifications.md).
+- Factual period comparisons by source and job title, with dossier-level evidence and explicit missing-data limits; see [strategy review](docs/strategy-review.md).
 - Offer extraction with a local heuristic or a provider-assisted request.
 - Local PDF/DOCX/TXT text extraction for CVs.
 - CV review and draft cover letters, using manual copy/paste or an explicit API request.
