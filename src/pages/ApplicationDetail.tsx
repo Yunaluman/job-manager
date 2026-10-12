@@ -23,6 +23,7 @@ import type { Status } from '../types'
 import { STATUSES, STATUS_LABELS } from '../types'
 import { StatusBadge } from '../components/StatusBadge'
 import { ApplicationForm } from '../components/ApplicationForm'
+import { DocumentsPanel } from '../components/DocumentsPanel'
 
 function fmt(d?: string) {
   return d ? new Date(d).toLocaleDateString('fr-FR') : '—'
@@ -154,6 +155,7 @@ export function ApplicationDetail() {
       </div>
 
       <ApplicationTimeline key={app.id} application={app} />
+      <DocumentsPanel key={`documents-${app.id}`} application={app} />
 
       <div className="grid gap-6 md:grid-cols-2">
         <section className="flex flex-col gap-3 app-panel p-5">
