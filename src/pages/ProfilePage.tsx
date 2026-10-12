@@ -3,6 +3,7 @@ import { User, FileUp, Loader2 } from 'lucide-react'
 import { useSettings, saveSettings } from '../cv'
 import { extractTextFromFile } from '../extract'
 import { DraftGuard } from '../components/DraftGuard'
+import { CvDocumentsPanel } from '../components/CvDocumentsPanel'
 
 const inputClass =
   'app-field'
@@ -82,6 +83,7 @@ export function ProfilePage() {
       </p>
 
       <div className="flex flex-col gap-6">
+        <CvDocumentsPanel />
         <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer le profil et le CV'}</button>
         {fileError && <p role="alert" className="text-sm text-rose-700 dark:text-rose-400">{fileError}</p>}
         <section className="rounded-xl border border-line bg-surface p-5">

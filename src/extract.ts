@@ -6,7 +6,9 @@ async function extractPdf(buffer: ArrayBuffer): Promise<string> {
   const pdfjs = await import('pdfjs-dist')
   const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
-  const doc = await pdfjs.getDocument({ data: buffer }).promise
+  const task = pdfjs.getDocument({ data: buffer })
+  const doc = await task.promise
+  try {
   const pages: string[] = []
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i)
@@ -19,6 +21,7 @@ async function extractPdf(buffer: ArrayBuffer): Promise<string> {
     )
   }
   return pages.join('\n\n').trim()
+  } finally { await task.destroy() }
 }
 
 async function extractDocx(buffer: ArrayBuffer): Promise<string> {
