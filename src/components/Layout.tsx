@@ -12,6 +12,7 @@ const destinations = [
   { to: '/candidatures', label: 'Candidatures', icon: KanbanSquare },
   { to: '/actions', label: 'Actions', icon: ListTodo },
   { to: '/profil', label: 'Mon profil', icon: User },
+  { to: '/bilan', label: 'Bilan', icon: Activity },
   { to: '/cv', label: 'Analyse du CV', icon: FileText },
   { to: '/lettre', label: 'Textes de lettres conservés', icon: Mail },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
