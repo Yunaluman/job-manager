@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { validateDocument, validateDocumentVersion, validateDocumentLinks } from './document-model.mjs'
 import { cvText } from '../src/cv-document.mjs'
+import { validateSubmission, validateSubmissionLinks } from './submissions.mjs'
 
 export const JOURNEY_TABLES = { offers: 'offers', criteria: 'search_criteria', qualifications: 'qualifications', documents: 'documents', documentVersions: 'document_versions', submissions: 'submissions' }
 export const fail = (message) => { throw Object.assign(new Error(message), { status: 400 }) }
@@ -27,8 +28,7 @@ export function validateQualification(value) {
   }
   if (value.analysis !== undefined && (!exact(value.analysis, ['text', 'score', 'mode', 'model']) || !string(value.analysis.text) || !value.analysis.text.trim() || !(value.analysis.score === null || Number.isInteger(value.analysis.score) && value.analysis.score >= 0 && value.analysis.score <= 100) || !['manual', 'api'].includes(value.analysis.mode) || !string(value.analysis.model, 300))) fail('Analyse indicative invalide.')
 }
-const reserved = () => fail('Collection réservée à un lot ultérieur.')
-export const JOURNEY_VALIDATORS = { offers: validateOffer, criteria: validateCriterion, qualifications: validateQualification, documents: validateDocument, documentVersions: validateDocumentVersion, submissions: reserved }
+export const JOURNEY_VALIDATORS = { offers: validateOffer, criteria: validateCriterion, qualifications: validateQualification, documents: validateDocument, documentVersions: validateDocumentVersion, submissions: validateSubmission }
 export function initializeJourney(db) { for (const table of Object.values(JOURNEY_TABLES)) db.exec(`CREATE TABLE IF NOT EXISTS ${table} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`) }
 export function journeySnapshot(db) { return Object.fromEntries(Object.entries(JOURNEY_TABLES).map(([key, table]) => [key, db.prepare(`SELECT data FROM ${table} ORDER BY id`).all().map((row) => JSON.parse(row.data))])) }
 export function validateJourney(value) {
@@ -39,6 +39,7 @@ export function validateJourney(value) {
   }
   if (value.qualifications.some((item) => !value.offers.some((offer) => offer.id === item.offerId))) fail('Offre de qualification absente.')
   validateDocumentLinks(value)
+  validateSubmissionLinks(value)
   if (value.qualifications.some((qualification) => qualification.cvVersionId && !value.documentVersions.some((version) => version.id === qualification.cvVersionId && version.templateVersion === 'single-column-cv-v1' && cvText(version.content, version.layout) === qualification.cvText))) fail('Version CV de qualification absente ou incohérente.')
 }
 export function restoreJourney(db, value) { validateJourney(value); initializeJourney(db); for (const [key, table] of Object.entries(JOURNEY_TABLES)) for (const row of value[key]) db.prepare(`INSERT INTO ${table} VALUES (?, ?)`).run(row.id, JSON.stringify(row)) }

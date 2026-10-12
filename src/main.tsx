@@ -38,6 +38,7 @@ const applicationDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/candidatures/$id',
   component: ApplicationDetail,
+  validateSearch: (search: Record<string, unknown>) => ({ tab: ['summary','offer','documents','history'].includes(String(search.tab)) ? String(search.tab) : undefined }),
 })
 
 const cvRoute = createRoute({
@@ -65,8 +66,8 @@ const profileRoute = createRoute({
 })
 
 const routeTree = rootRoute.addChildren([
-  createRoute({ getParentRoute: () => rootRoute, path: '/offres', component: OffersPage }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/actions', component: ActionsPage, validateSearch: (search: Record<string, unknown>) => ({ action: typeof search.action === 'string' ? search.action : undefined }) }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/offres', component: OffersPage, validateSearch: (search: Record<string, unknown>) => ({ offer: typeof search.offer === 'string' ? search.offer : undefined }) }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/actions', component: ActionsPage, validateSearch: (search: Record<string, unknown>) => ({ action: typeof search.action === 'string' ? search.action : undefined, app: typeof search.app==='string'?search.app:undefined }) }),
   createRoute({ getParentRoute: () => rootRoute, path: '/activite-ia', component: AiActivityPage }),
   dashboardRoute,
   applicationsRoute,

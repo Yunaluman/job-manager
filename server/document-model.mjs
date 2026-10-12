@@ -17,7 +17,7 @@ export function validateDocumentVersion(value) {
   if (!exact(value, ['id', 'documentId', 'number', 'createdAt', 'title', 'status', 'content', 'layout', 'templateVersion', 'parentVersionId', 'sources']) || !id(value.id) || !id(value.documentId) || !Number.isSafeInteger(value.number) || value.number < 1 || !timestamp(value.createdAt) || !text(value.title, 300) || !value.title.trim() || !['draft', 'ready', 'archived'].includes(value.status) || !['classic-letter-v1', 'single-column-cv-v1'].includes(value.templateVersion) || (value.parentVersionId !== undefined && !id(value.parentVersionId))) fail('Version de document invalide.')
   if (value.templateVersion === 'single-column-cv-v1') validateCv(value.content, value.layout)
   else { validateLetter(value.content); validateLayout(value.layout) }
-  if (!exact(value.sources, ['offerText', 'cvText', 'legacyText', 'cvVersionId']) || Object.entries(value.sources).some(([key, entry]) => key === 'cvVersionId' ? !id(entry) : !text(entry))) fail('Sources de document invalides.')
+  if (!exact(value.sources, ['offerText', 'cvText', 'legacyText', 'cvVersionId', 'generationModel', 'generationMode']) || Object.entries(value.sources).some(([key, entry]) => key === 'cvVersionId' ? !id(entry) : key === 'generationMode' ? !['manual','api'].includes(entry) : !text(entry))) fail('Sources de document invalides.')
 }
 export function validateDocumentLinks(journey) {
   for (const doc of journey.documents) if (!journey.documentVersions.some((version) => version.id === doc.latestVersionId && version.documentId === doc.id)) fail('Version courante absente.')

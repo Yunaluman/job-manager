@@ -17,8 +17,8 @@ export function ActionsPage() {
   const { actions, applications } = useData()
   const persistence = usePersistenceStatus()
   const day = usePlanningDay()
-  const search = useSearch({ strict: false }) as { action?: string }
-  const [editing, setEditing] = useState<ActionInput | null>(null)
+  const search = useSearch({ strict: false }) as { action?: string; app?:string }
+  const [editing, setEditing] = useState<ActionInput | null>(()=>search.app?{...fresh(),applicationId:search.app}:null)
   const [completed, setCompleted] = useState(false)
   const sources = sourceDeadlines(applications, actions)
   const undecided = dossiersToDecide(applications, actions)
