@@ -1,3 +1,4 @@
+import { DraftNavigationGuard } from './DraftGuard'
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { Briefcase, LayoutDashboard, KanbanSquare, FileText, Mail, Settings, User, Menu, X, Activity, ListTodo } from 'lucide-react'
@@ -49,7 +50,7 @@ export function Layout() {
     window.addEventListener('keydown', keydown)
     return () => { document.body.style.overflow = overflow; window.removeEventListener('keydown', keydown) }
   }, [open])
-  return <div className="min-h-screen lg:flex">
+  return <div className="min-h-screen lg:flex"><DraftNavigationGuard />
     <a href="#main-content" className="sr-only z-[110] rounded-lg bg-surface p-3 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Aller au contenu</a>
     {open && <button aria-label="Fermer la navigation" className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => { setOpen(false); menuButton.current?.focus() }} />}
     <aside ref={navigation} id="main-navigation" aria-label="Navigation principale" className={`${open ? 'fixed inset-y-0 left-0 z-[60] flex' : 'hidden'} w-64 shrink-0 flex-col border-r border-line bg-surface p-5 lg:sticky lg:top-0 lg:flex lg:h-screen`}>
