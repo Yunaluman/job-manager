@@ -1,3 +1,4 @@
+import { initializeOriginals, originalSnapshot, originalMetadata, registerOriginalRoutes } from './cv-originals.mjs'
 import express from 'express'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createCredentialStore, assertDatabaseIntegrity, PUBLIC_FIELDS, PROVIDERS, providerForUrl } from './credentials.mjs'
@@ -24,6 +25,7 @@ export function initializeDatabase(db) {
   initializeActions(db)
   initializeJourney(db)
   initializeInterviews(db)
+  initializeOriginals(db)
 }
 export function createApp({ db, protector, port, development = false, fetchProvider = fetch, backupDirectory }) {
   assertDatabaseIntegrity(db)
@@ -71,6 +73,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   registerDocumentRoutes(app, db, confirmWrite)
   registerSubmissionRoutes(app, db, confirmWrite)
   registerInterviewRoutes(app, db, confirmWrite)
+  registerOriginalRoutes(app, db, confirmWrite)
   app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
   let backupRunning = false
   app.post('/api/backups', async (_req, res, next) => {
@@ -84,6 +87,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   app.get('/api/state', (_req, res) => {
     const state = db.transaction(() => ({
       revision: writes.revision(),
+      cvOriginals: originalSnapshot(db).map(originalMetadata),
       ...planningSnapshot(db),
       journey: journeySnapshot(db),
       interviewPlans: interviewSnapshot(db),

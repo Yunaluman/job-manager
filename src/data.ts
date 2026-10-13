@@ -1,3 +1,4 @@
+import type { CvOriginal } from './originals'
 import { useSyncExternalStore } from 'react'
 import type { Application } from './types'
 import type { Settings, CvAnalysis } from './cv'
@@ -12,6 +13,7 @@ import type { InterviewPlan } from './interview-types'
 import { validateInterviewPlans } from './interviews-core.mjs'
 
 export interface DataState {
+  cvOriginals: CvOriginal[]
   revision: number
   applications: Application[]
   analyses: CvAnalysis[]
@@ -23,7 +25,7 @@ export interface DataState {
   interviewPlans: InterviewPlan[]
 }
 const initialState: DataState = {
-  revision: 0, applications: [], analyses: [], actions: [], notificationReads: [], interviewPlans: [],
+  cvOriginals: [], revision: 0, applications: [], analyses: [], actions: [], notificationReads: [], interviewPlans: [],
   journey: { offers: [], criteria: [], qualifications: [], documents: [], documentVersions: [], submissions: [] },
   aiConfig: { monthlyLimitCents: null, tariffs: [] },
   settings: { keyStatus: {}, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', cvText: '', profileName: '', profileEmail: '', profilePhone: '', profileCity: '', profileTitle: '' },
@@ -33,6 +35,7 @@ export const dataStore = createConfirmedStore<DataState>({
   load: async () => {
     await refreshSession()
     const loaded = await apiGet<DataState>('state')
+    if (!Array.isArray(loaded.cvOriginals)) throw new Error('Bibliothèque CV indisponible. Redémarre puis synchronise.')
     if (!loaded.journey || !['offers','criteria','qualifications','documents','documentVersions','submissions'].every(key=>Array.isArray(loaded.journey[key as keyof JourneyState]))) throw new Error('Parcours indisponible. Redémarre puis synchronise.')
     if (!Array.isArray(loaded.actions) || !Array.isArray(loaded.notificationReads)) throw new Error('Planning absent. Redémarre JobPilot puis synchronise.')
     loaded.actions.forEach(validateAction); loaded.notificationReads.forEach(validateNotificationReadState)

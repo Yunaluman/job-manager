@@ -49,7 +49,7 @@ SQLite secure-delete is enabled for future changes. Migration does not guarantee
 
 ## Backups
 
-Portable v5 JSON snapshots include applications, analyses, CV/profile, public provider settings, AI monitoring, actions, notification read states, the application journey and planned interviews, without saved credentials. Older versions restore collections absent from their format as empty; old-format exports refuse to omit existing data. Excel exports contain applications only. Legacy JSON-array import replaces applications after confirmation and a verified encrypted backup. Full snapshots restore into a new database with the supplied CLI; see [the persistence and restoration guide](docs/persistence-lot-2.md) and [planned interviews](docs/interview-plans.md).
+Portable v6 JSON snapshots include applications, analyses, CV/profile, public provider settings, AI monitoring, actions, notification read states, the application journey and planned interviews, without saved credentials. Older versions restore collections absent from their format as empty; old-format exports refuse to omit existing data. Excel exports contain applications only. Legacy JSON-array import replaces applications after confirmation and a verified encrypted backup. Full snapshots restore into a new database with the supplied CLI; see [the persistence and restoration guide](docs/persistence-lot-2.md) and [planned interviews](docs/interview-plans.md).
 
 Use “Sauvegarder la base chiffrée” in Settings for a verified online SQLite backup, encrypted with Windows DPAPI and including protected credentials. Copy verified encrypted backups to a separate protected location for disk-loss recovery. Raw copying during use can omit WAL changes. Do not commit databases or backups to Git.
 

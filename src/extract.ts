@@ -1,10 +1,11 @@
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 // Extraction du texte d'un CV déposé (PDF, DOCX ou TXT).
 // Tout se passe dans le navigateur : le fichier ne quitte jamais la machine.
 // Les librairies sont chargées en import dynamique (uniquement au dépôt).
 
 async function extractPdf(buffer: ArrayBuffer): Promise<string> {
   const pdfjs = await import('pdfjs-dist')
-  const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default
+  const workerUrl = pdfWorkerUrl
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
   const task = pdfjs.getDocument({ data: buffer })
   const doc = await task.promise
