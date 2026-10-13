@@ -1,3 +1,4 @@
+import { registerNativeRoutes, exportRegisterCsv, validatePreparation } from './register-native.mjs'
 import { createAiService } from './modules/ai/service.mjs'
 import { retrieveOffer } from './offer-fetch.mjs'
 import { initializeOriginals, originalSnapshot, originalMetadata, registerOriginalRoutes } from './cv-originals.mjs'
@@ -132,11 +133,28 @@ export function createApp({ db, protector, port, development = false, fetchProvi
       })
     } catch (error) { next(error) }
   })
+  registerNativeRoutes(app, db, confirmWrite, {
+    preflight: req => writes.preflight(writeRequest(req)),
+    run: async () => {if (!backupDirectory || backupRunning) throw Object.assign(new Error('Sauvegarde préalable indisponible.'),{status:409});backupRunning=true;try {const saved=await createEncryptedBackup(db,protector,backupDirectory);if(!saved.verified)throw new Error('Backup verification failed.')}finally{backupRunning=false}}
+  })
+  app.get('/api/register/export',(_req,res)=>res.type('text/csv').attachment('candidatures.csv').send(exportRegisterCsv(applicationRows(),journeySnapshot(db),originalSnapshot(db))))
+  app.put('/api/applications/:id/preparation',(req,res)=>confirmWrite(req,res,()=>{
+    const row=db.prepare('SELECT data FROM applications WHERE id=?').get(req.params.id)
+    if(!row||!req.body||Object.keys(req.body).some(key=>key!=='cv')||!Object.hasOwn(req.body,'cv'))throw Object.assign(new Error('Sélection invalide.'),{status:400})
+    const value={...JSON.parse(row.data),preparationCv:req.body.cv===null?{kind:'profile',id:'profile'}:req.body.cv}
+    validateApplicationEvents(value);validatePreparation(value,originalSnapshot(db),journeySnapshot(db))
+    db.prepare('UPDATE applications SET data=? WHERE id=?').run(JSON.stringify(value),value.id);return value
+  }))
   for (const table of ['applications', 'analyses']) {
     const assertWritable = (id, body) => {
       if (table !== 'applications') return
       const previous = db.prepare('SELECT data FROM applications WHERE id = ?').get(id)
-      if (body?.register !== undefined || (previous && JSON.parse(previous.data).register)) throw Object.assign(new Error('Dossier issu du CSV en lecture seule. Modifie le registre puis importe son aperçu.'), { status: 400 })
+      const old=previous&&JSON.parse(previous.data)
+      if (old?.registerAdoptedAt && body) {
+        if(JSON.stringify(body.register)!==JSON.stringify(old.register)||body.registerAdoptedAt!==old.registerAdoptedAt||body.externalId!==old.externalId||old.events?.filter(event=>event.source==='register-date').some(event=>!body.events?.some(item=>JSON.stringify(item)===JSON.stringify(event)))) throw Object.assign(new Error('Provenance CSV immuable.'),{status:400})
+        validateRegisterProjection(body);validatePreparation(body,originalSnapshot(db),journeySnapshot(db));return
+      }
+      if (body?.registerAdoptedAt !== undefined || body?.register !== undefined || old?.register) throw Object.assign(new Error('Dossier issu du CSV en lecture seule. Modifie le registre puis importe son aperçu.'), { status: 400 })
     }
     const validateLink = (item) => {
       if (table === 'analyses' && item.cvVersionId !== undefined) {
@@ -158,7 +176,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     app.get(`/api/${table}`, (_req, res) => res.json(db.prepare(`SELECT data FROM ${table}`).all().map((row) => JSON.parse(row.data))))
     app.put(`/api/${table}/:id`, (req, res) => {
       if (!req.body || Array.isArray(req.body) || req.body.id !== req.params.id) return res.status(400).json({ error: 'Identifiant invalide.' })
-      if (table === 'applications') validateApplicationEvents(req.body)
+      if (table === 'applications') {validateApplicationEvents(req.body);validatePreparation(req.body,originalSnapshot(db),journeySnapshot(db))}
       confirmWrite(req, res, () => { assertWritable(req.params.id, req.body); validateLink(req.body); upsert.run(req.params.id, JSON.stringify(req.body)); return req.body })
     })
     app.delete(`/api/${table}/:id`, (req, res) => {

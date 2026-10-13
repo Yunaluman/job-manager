@@ -1,3 +1,4 @@
+import { NativeAdoption } from './NativeAdoption'
 import { Button } from '../../shared/ui/Button'
 import { Settings as SettingsIcon, Database, Download, Upload, FileSpreadsheet } from 'lucide-react'
 import { exportExcel, exportJSON, importJSON } from '../../storage'
@@ -66,7 +67,7 @@ export function SettingsPage() {
 
       <nav className="app-jump" aria-label="Sections des paramètres"><a href="#settings-provider">Fournisseur IA</a><a href="#settings-register">Registre CSV</a><a href="#settings-data">Sauvegardes et exports</a></nav><div className="flex flex-col gap-6">
         <section id="settings-provider"><ProviderPicker withKeys /></section>
-        <section id="settings-register"><RegisterImport /></section>
+        <section id="settings-register"><RegisterImport /><NativeAdoption /></section>
 
         <section id="settings-data" className="app-panel p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">

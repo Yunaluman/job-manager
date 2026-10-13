@@ -1,3 +1,4 @@
+import { hasNativeData, validatePreparation } from './register-native.mjs'
 import { originalSnapshot, restoreOriginals, validateOriginals } from './cv-originals.mjs'
 import { createHash } from 'node:crypto'
 import { openSync, writeFileSync, fsyncSync, closeSync, unlinkSync } from 'node:fs'
@@ -28,6 +29,7 @@ export function exportSnapshot(db, settings, version = 7) {
     const monitoring = db.prepare("SELECT name FROM sqlite_master WHERE name = 'ai_events'").get() ? monitoringSnapshot(db) : {events:[]}
     if (version < 6 && (originals.length || hasV6JourneyData(journey) || hasV6Monitoring(monitoring))) throw new Error('Use portable v6 to preserve source files and reviewed qualifications.')
     if (version < 7 && (monitoring.events.some(event=>event.diagnostic !== undefined) || journey.documentVersions.some(value=>value.sources.generationProvider !== undefined))) throw new Error('Use portable v7 to preserve AI diagnostics and generation provenance.')
+    if (version < 7 && hasNativeData(db.prepare('SELECT data FROM applications').all().map(row=>JSON.parse(row.data)),journey)) throw new Error('Use portable v7 for native follow-up.')
     const payload = {
       revision: db.prepare('SELECT revision FROM persistence_revision WHERE singleton = 1').get().revision,
       applications: db.prepare('SELECT data FROM applications ORDER BY id').all().map((row) => JSON.parse(row.data)),
@@ -58,6 +60,8 @@ export function validateSnapshot(snapshot) {
   if (snapshot.version < 6 && ((snapshot.version >= 4 && hasV6JourneyData(snapshot.payload.journey)) || (snapshot.version >= 2 && hasV6Monitoring(snapshot.payload.monitoring)))) throw new Error('New source and qualification data require portable v6.')
   validateOriginals(snapshot.version >= 6 ? snapshot.payload.cvOriginals : [], snapshot.version >= 4 ? snapshot.payload.journey : emptyJourney())
   if (snapshot.version < 7 && (snapshot.payload.monitoring?.events.some(event=>event.diagnostic !== undefined) || snapshot.payload.journey?.documentVersions.some(value=>value.sources.generationProvider !== undefined))) throw new Error('AI diagnostics and generation provenance require portable v7.')
+  if (snapshot.version < 7 && hasNativeData(applications,snapshot.payload.journey??emptyJourney())) throw new Error('Native follow-up requires portable v7.')
+  applications.forEach(application=>validatePreparation(application,snapshot.payload.cvOriginals??[],snapshot.payload.journey??emptyJourney()))
   applications.forEach(validateApplicationEvents)
   applications.forEach(validateRegisterProjection)
   return snapshot.payload

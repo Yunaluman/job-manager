@@ -41,7 +41,7 @@ export function RegisterImport() {
   return <section className="app-panel p-5">
     <DraftGuard dirty={selectedRows.length > 0} />
     <h2 className="mb-3 font-semibold">Registre des candidatures CSV</h2>
-    <p className="mb-3 text-sm text-muted">Le CSV reste la source de vérité. JobPilot conserve une copie en lecture seule des lignes sélectionnées. Les analyses et lettres restent des brouillons locaux.</p>
+    <p className="mb-3 text-sm text-muted">Rapproche le CSV avec la base avant de choisir le suivi principal dans JobPilot. L’import crée d’abord des copies vérifiables en lecture seule ; l’adoption est une confirmation séparée.</p>
     <label className="block text-sm">Choisir le registre CSV (UTF-8, point-virgule, maximum 2 Mo)
       <input type="file" accept=".csv,text/csv" disabled={busy} className="app-field mt-2" onChange={(event) => {
         const file = event.target.files?.[0]

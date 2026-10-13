@@ -8,7 +8,7 @@ import type { Evidence, ReviewGroup, ReviewSummary } from '../../../shared/domai
 
 const number = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
 const format = (value: number | null, unit = '') => value === null ? '—' : `${number.format(value)}${unit}`
-const eventLabels = { sent: 'Envoi', response: 'Réponse', interview: 'Entretien', offer: 'Offre', refusal: 'Refus' }
+const eventLabels = { sent: 'Envoi', response: 'Réponse', interview: 'Entretien', offer: 'Offre', refusal: 'Refus', followup: 'Relance' }
 const dateLabel = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split('-').reverse().join('/') : value
 
 function EvidenceList({ rows }: { rows: Evidence[] }) {

@@ -33,7 +33,7 @@ export interface HistoryEntry {
 
 export interface ApplicationEvent {
   id: string
-  kind: 'sent' | 'response' | 'interview' | 'offer' | 'refusal'
+  kind: 'sent' | 'response' | 'interview' | 'offer' | 'refusal' | 'followup'
   occurredAt: string
   source: 'manual' | 'legacy-date' | 'register-date'
 }
@@ -44,7 +44,7 @@ const REGISTER_STATUS_LABELS: Record<string, string> = {
   offre: 'Offre', refus: 'Refus', refusee: 'Refusée', abandonne: 'Abandonnée', ecarte: 'Écartée',
 }
 export function applicationStatusLabel(application: Application) {
-  const raw = application.register?.raw.statut
+  const raw = application.registerAdoptedAt ? undefined : application.register?.raw.statut
   return raw ? (Object.hasOwn(REGISTER_STATUS_LABELS, raw) ? REGISTER_STATUS_LABELS[raw] : raw) : STATUS_LABELS[application.status]
 }
 
@@ -61,6 +61,8 @@ export interface RegisterProjection {
 }
 
 export interface Application {
+  registerAdoptedAt?: string
+  preparationCv?: { kind: 'original' | 'version' | 'profile'; id: string }
   externalId?: string
   register?: RegisterProjection
   events?: ApplicationEvent[]
@@ -82,3 +84,5 @@ export interface Application {
   createdAt: string
   updatedAt: string
 }
+
+export function isCsvReadOnly(application: Application) { return Boolean(application.register && !application.registerAdoptedAt) }
