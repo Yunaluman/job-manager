@@ -30,7 +30,7 @@ export function DraftNavigationGuard() {
     <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Modifications non enregistrées" className="max-w-md rounded-xl border border-amber-500/40 bg-surface p-6">
       <p>Des modifications ne sont pas enregistrées. Quitter abandonnera les brouillons de cette page.</p>
       <p className="mt-2 text-sm text-muted">Rester permet de continuer ; cela n’enregistre rien.</p><div className="mt-4 flex flex-wrap gap-3">
-        <button className="rounded-lg bg-indigo-600 text-white px-3 py-2" onClick={() => blocker.reset()}>Rester et continuer</button>
+        <button className="app-primary" onClick={() => blocker.reset()}>Rester et continuer</button>
         <button className="px-3 py-2 text-rose-700 dark:text-rose-300" onClick={() => blocker.proceed()}>Quitter sans enregistrer</button>
       </div>
     </div>

@@ -161,7 +161,7 @@ export function ApplicationForm({ initial, defaults, onClose }: Props) {
           </button>
           <button
             type="submit"
-            className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700"
+            className="app-primary"
           >
             {initial ? 'Enregistrer' : 'Ajouter'}
           </button>

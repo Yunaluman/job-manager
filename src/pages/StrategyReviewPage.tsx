@@ -69,7 +69,7 @@ export function StrategyReviewPage() {
   const review = result.review
   const qualityLabels = { incomplete: 'Historiques incomplets', missingSend: 'Sans date d’envoi exploitable', missingSource: 'Source non renseignée', missingTitle: 'Intitulé non renseigné', anomalies: 'Dossiers avec dates incohérentes' } as const
   return <div className="mx-auto max-w-6xl space-y-6">
-    <div><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Bilan de la recherche</h1><p className="mt-2 text-sm text-muted">Des faits datés pour examiner ta recherche, sans classement ni recommandation automatique.</p></div>
+    <div><p className="app-eyebrow">Prendre du recul</p><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Bilan de la recherche</h1><p className="mt-2 text-sm text-muted">Des faits datés pour examiner ta recherche, sans classement ni recommandation automatique.</p></div>
     <form key={`${from}:${to}`} className="app-panel flex flex-wrap items-end gap-4 p-4" onSubmit={(event) => {
       event.preventDefault()
       const fields = new FormData(event.currentTarget)
