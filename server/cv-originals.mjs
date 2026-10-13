@@ -18,6 +18,7 @@ export function validateOriginals(values, journey) {
   for (const version of journey.documentVersions) {
     const original = values.find(value => value.id === version.sources.originalId)
     if (version.sources.originalId && !original) fail('Fichier source du CV absent.')
+      if (version.templateVersion === 'classic-letter-v1' && original && (version.sources.cvVersionId || version.sources.cvText !== original.text)) fail('Source originale de la lettre incohérente.')
     const trace = version.sources.prefill
     if (trace !== undefined) {
       if (!trace || typeof trace !== 'object' || Array.isArray(trace) || !original || version.sources.cvText !== original.text || trace.originalId !== original.id || !['local','api'].includes(trace.mode) || typeof trace.model !== 'string' || trace.model.length > 120 || (trace.mode === 'api' && !trace.model.trim()) || !Array.isArray(trace.appliedFields) || !trace.appliedFields.length || new Set(trace.appliedFields).size !== trace.appliedFields.length || trace.appliedFields.some(field => !PREFILL_FIELDS.includes(field) || !trace.proposals?.some(item => item.field === field)) || Object.keys(trace).some(key => !['originalId','mode','model','proposals','appliedFields'].includes(key))) fail('Provenance de préremplissage invalide.')

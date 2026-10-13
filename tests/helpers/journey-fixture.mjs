@@ -14,7 +14,8 @@ export async function journeyFixture(t, options = {}) {
   t.after(async()=>{server.closeAllConnections();await new Promise((done)=>server.close(done));db.close();rmSync(directory,{recursive:true,force:true})})
   const revision = ()=>db.prepare('SELECT revision FROM persistence_revision').get().revision
   const call = (path, method='GET', body, headers={})=>new Promise((done,reject)=>{
-    const req=request({host:'127.0.0.1',port:server.address().port,path,method,headers:{'X-JobPilot-Session':result.token,'X-JobPilot-Revision':String(revision()),'X-JobPilot-Operation':randomUUID(),...(body===undefined?{}:{'Content-Type':'application/json'}),...headers}},res=>{const chunks=[];res.on('data',chunk=>chunks.push(chunk));res.on('end',()=>{const bytes=Buffer.concat(chunks);done({status:res.statusCode,body:res.headers['content-type']?.includes('application/json')?JSON.parse(bytes.toString()):bytes,headers:res.headers})})});req.on('error',reject);req.end(body===undefined?undefined:JSON.stringify(body))
+    // Blocking Windows protection can outlive the server keep-alive timeout.
+    const req=request({agent:false,host:'127.0.0.1',port:server.address().port,path,method,headers:{'X-JobPilot-Session':result.token,'X-JobPilot-Revision':String(revision()),'X-JobPilot-Operation':randomUUID(),...(body===undefined?{}:{'Content-Type':'application/json'}),...headers}},res=>{const chunks=[];res.on('data',chunk=>chunks.push(chunk));res.on('end',()=>{const bytes=Buffer.concat(chunks);done({status:res.statusCode,body:res.headers['content-type']?.includes('application/json')?JSON.parse(bytes.toString()):bytes,headers:res.headers})})});req.on('error',reject);req.end(body===undefined?undefined:JSON.stringify(body))
   })
   return {db,call,revision,directory,protector}
 }
