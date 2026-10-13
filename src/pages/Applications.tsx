@@ -58,7 +58,7 @@ export function Applications() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Candidatures</h1>
+          <p className="app-eyebrow">Suivi des dossiers</p><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Candidatures</h1>
           <p className="text-sm text-muted">{apps.length} au total</p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
@@ -94,13 +94,13 @@ export function Applications() {
           </div>
           <button
             onClick={() => setQuickOpen(true)}
-            className="flex items-center gap-2 rounded-lg border border-indigo-500/40 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/10"
+            className="app-button"
           >
             <Zap size={16} /> Ajout express
           </button>
           <button
             onClick={() => setCreating(true)}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700"
+            className="app-primary"
           >
             <Plus size={16} /> Ajouter
           </button>
@@ -204,7 +204,7 @@ function QuickAdd({
           <button
             onClick={run}
             disabled={!text.trim() || loading}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 disabled:opacity-50"
+            className="app-primary"
           >
             {loading ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
             {loading ? 'Extraction…' : 'Extraire et pré-remplir'}

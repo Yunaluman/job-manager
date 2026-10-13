@@ -49,7 +49,7 @@ export function ActionsPage() {
   }
   const open = sortActions(actions.filter((action) => action.status === 'todo'))
   return <div className="mx-auto max-w-5xl">
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Actions</h1><p className="mt-2 text-sm text-muted">Quoi faire, pour quand, avec quel résultat. Dates en Europe/Paris ; semaine du lundi au dimanche.</p></div><button className="app-primary" disabled={persistence.blocked || !persistence.ready} onClick={() => setEditing(fresh())}>Nouvelle action</button></div>
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><p className="app-eyebrow">Organisation</p><h1 className="text-2xl font-semibold">Actions</h1><p className="mt-2 text-sm text-muted">Quoi faire, pour quand, avec quel résultat. Dates en Europe/Paris ; semaine du lundi au dimanche.</p></div><button className="app-primary" disabled={persistence.blocked || !persistence.ready} onClick={() => setEditing(fresh())}>Nouvelle action</button></div>
     <InterviewPlans selectedId={search.interview} />
     {!confirmed ? <p role="status" className="my-4 text-sm text-muted">{persistence.blocked ? 'Actions indisponibles : synchronise les données.' : 'Chargement ou confirmation en cours…'}</p> : <>
     {Object.entries(buckets).map(([key, label]) => { const group = open.filter((action) => actionBucket(action, day) === key); return <section className="mb-6" key={key}><h2 className="mb-3 font-semibold">{label} ({group.length})</h2><div className="space-y-3">{group.map(renderAction)}{!group.length && <p className="text-sm text-muted">Aucune action.</p>}</div></section> })}

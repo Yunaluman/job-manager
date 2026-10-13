@@ -55,7 +55,7 @@ const btnClass =
 export function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+      <p className="app-eyebrow">Configuration</p><h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
         <SettingsIcon size={22} className="text-indigo-700 dark:text-indigo-400" /> Paramètres
       </h1>
       <p className="mb-8 text-sm text-muted">
@@ -63,11 +63,11 @@ export function SettingsPage() {
         <span className="text-secondary">Mon profil</span>.
       </p>
 
-      <div className="flex flex-col gap-6">
-        <ProviderPicker withKeys />
-        <RegisterImport />
+      <nav className="app-jump" aria-label="Sections des paramètres"><a href="#settings-provider">Fournisseur IA</a><a href="#settings-register">Registre CSV</a><a href="#settings-data">Sauvegardes et exports</a></nav><div className="flex flex-col gap-6">
+        <section id="settings-provider"><ProviderPicker withKeys /></section>
+        <section id="settings-register"><RegisterImport /></section>
 
-        <section className="rounded-xl border border-line bg-surface p-5">
+        <section id="settings-data" className="app-panel p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <Database size={15} className="text-muted" /> Mes données
           </div>
