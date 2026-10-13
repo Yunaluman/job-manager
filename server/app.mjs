@@ -1,4 +1,5 @@
 import { qualificationPrompt, validateQualificationProposals } from '../src/qualification-core.mjs'
+import { providerError } from './provider-errors.mjs'
 import { retrieveOffer } from './offer-fetch.mjs'
 import { prefillPrompt, validatePrefill } from '../src/cv-prefill.mjs'
 import { initializeOriginals, originalSnapshot, originalMetadata, registerOriginalRoutes } from './cv-originals.mjs'
@@ -253,7 +254,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
       if (!result.ok) {
         const response = await result.json().catch(() => undefined)
         outcome = { status: 'error', errorKind: 'provider', response }
-        reply = { error: result.status === 401 ? 'Clé API invalide ou expirée.' : `Le fournisseur a refusé la requête (${result.status}).` }
+        reply = providerError({ status: result.status, provider, response, headers: result.headers, secret: key, attemptId: attempt.event.id })
       } else {
         const response = await result.json()
         const content = response?.choices?.[0]?.message?.content
