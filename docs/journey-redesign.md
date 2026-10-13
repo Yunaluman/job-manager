@@ -13,3 +13,9 @@ Validation: TypeScript and Vite build passed. The existing suite passed 115 test
 Immutable PDF/DOCX/TXT originals (5 MiB each) live in SQLite with exact base64 bytes, SHA-256 and server-extracted text. Authenticated upload uses revisions and receipts; download returns original bytes. PDF previews render original pages. DOCX previews render an allowlisted local approximation without links/images; legacy text has no fabricated original. Portable v6 and encrypted backups retain files and document source links; older exports refuse loss.
 
 Validation: real synthetic PDF/DOCX imports, malformed/scanned/oversized refusal, stale writes, receipt replay, atomic rollback, tamper checks, v1-v5 empty restore and real Windows DPAPI backup restoration. Browser DOCX and PDF previews checked; a PDF worker URL issue found in the browser was fixed by a static asset import and verified after reload. Local review completed; independent review pending.
+
+## Lot 3: reviewed CV prefill
+
+Local proposals detect explicit labels and contact details. Explicit AI structuring sends only the retained source through the monitored provider route; server/client validate strict JSON and require every non-empty value and evidence to occur in the source. Unknown fields are omitted. Selected proposals update a compared draft; optional contact application updates a separate profile draft. Only a human save creates an immutable CV version, retaining original ID, source text, proposal mode/model and applied fields. Human corrections remain allowed.
+
+Validation: 23 targeted tests passed (prefill, originals, CV versions and AI monitoring), TypeScript/build passed, synthetic browser local/AI proposals and selective application/version save checked, with 390px mobile width 384px. Local review completed; no independent review.

@@ -79,7 +79,12 @@ export function ProfilePage() {
       </p>
       <div className="flex flex-col gap-6">
         <OriginalLibrary onSelect={value => setDraft(previous => ({ ...previous, cvText: value.text }))} />
-        <CvDocumentsPanel />
+        <CvDocumentsPanel profileApply={proposal => setDraft(previous => ({...previous,
+          ...(proposal.name ? {profileName:proposal.name} : {}), ...(proposal.title ? {profileTitle:proposal.title} : {}),
+          ...(proposal.contact?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) ? {profileEmail:proposal.contact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)![0]} : {}),
+          ...(proposal.contact?.match(/(?:\+33\s*\(?0?\)?|0)[1-9](?:[ .-]?\d{2}){4}/) ? {profilePhone:proposal.contact.match(/(?:\+33\s*\(?0?\)?|0)[1-9](?:[ .-]?\d{2}){4}/)![0]} : {}),
+          ...(proposal.contact?.match(/\b\d{5}\s+[^\n]+/) ? {profileCity:proposal.contact.match(/\b\d{5}\s+[^\n]+/)![0]} : {})
+        }))} />
         <OrphanDocuments />
         <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer l’identité et le texte source'}</button>
         {saved && !dirty && <p role="status" className="text-sm text-emerald-700">Identité et texte source enregistrés.</p>}
