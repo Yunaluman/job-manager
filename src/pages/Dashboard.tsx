@@ -106,9 +106,13 @@ export function Dashboard() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight sm:text-3xl">Tableau de bord</h1>
-      <p className="mb-8 text-sm text-muted">Vue d'ensemble de ta recherche d'emploi.</p>
-      <Link to="/bilan" className="app-button mb-6 inline-flex">Bilan : comparer deux périodes</Link>
+      <p className="app-eyebrow">Vue d’ensemble</p><h1 className="mb-1 text-2xl font-semibold tracking-tight sm:text-3xl">Tableau de bord</h1>
+      <p className="mb-8 text-sm text-muted">Les prochaines étapes, les dossiers en cours et les résultats documentés de ta recherche.</p>
+      <div className="mb-8 grid gap-3 sm:grid-cols-3" aria-label="Accès rapides">
+        <Link to="/offres" className="app-panel group p-5"><p className="app-eyebrow">Explorer</p><h2 className="font-semibold">Qualifier une offre <span aria-hidden="true">↗</span></h2><p className="mt-2 text-sm text-muted">Vérifier les correspondances avant de décider.</p></Link>
+        <Link to="/actions" className="app-panel p-5"><p className="app-eyebrow">Avancer</p><h2 className="font-semibold">Organiser la suite <span aria-hidden="true">↗</span></h2><p className="mt-2 text-sm text-muted">Relances, préparation et entretiens à suivre.</p></Link>
+        <Link to="/bilan" className="app-panel p-5"><p className="app-eyebrow">Comprendre</p><h2 className="font-semibold">Faire le point <span aria-hidden="true">↗</span></h2><p className="mt-2 text-sm text-muted">Comparer les périodes à partir des faits datés.</p></Link>
+      </div>
       <PlanningSummary />
       <JourneySummary />
 

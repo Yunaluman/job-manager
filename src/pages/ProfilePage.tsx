@@ -71,25 +71,15 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl">
       <DraftGuard dirty={dirty} />
-      <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+      <p className="app-eyebrow">Ta base de travail</p><h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
         <User size={22} className="text-indigo-700 dark:text-indigo-400" /> Mon profil
       </h1>
       <p className="mb-8 text-sm text-muted">
         Ton identité et ton CV — la matière première des analyses et des lettres. Enregistre les modifications avant de quitter cette page.
       </p>
-      <div className="flex flex-col gap-6">
-        <OriginalLibrary onSelect={value => setDraft(previous => ({ ...previous, cvText: value.text }))} />
-        <CvDocumentsPanel profileApply={proposal => setDraft(previous => ({...previous,
-          ...(proposal.name ? {profileName:proposal.name} : {}), ...(proposal.title ? {profileTitle:proposal.title} : {}),
-          ...(proposal.contact?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) ? {profileEmail:proposal.contact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)![0]} : {}),
-          ...(proposal.contact?.match(/(?:\+33\s*\(?0?\)?|0)[1-9](?:[ .-]?\d{2}){4}/) ? {profilePhone:proposal.contact.match(/(?:\+33\s*\(?0?\)?|0)[1-9](?:[ .-]?\d{2}){4}/)![0]} : {}),
-          ...(proposal.contact?.match(/\b\d{5}\s+[^\n]+/) ? {profileCity:proposal.contact.match(/\b\d{5}\s+[^\n]+/)![0]} : {})
-        }))} />
-        <OrphanDocuments />
-        <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer l’identité et le texte source'}</button>
-        {saved && !dirty && <p role="status" className="text-sm text-emerald-700">Identité et texte source enregistrés.</p>}
-        {fileError && <p role="alert" className="text-sm text-rose-700 dark:text-rose-400">{fileError}</p>}
-        <section className="rounded-xl border border-line bg-surface p-5">
+      <nav className="app-jump" aria-label="Sections du profil"><a href="#profile-files">Fichiers originaux</a><a href="#profile-identity">Coordonnées</a><a href="#profile-versions">Versions du CV</a></nav><div className="flex flex-col gap-6">
+        <div id="profile-files"><OriginalLibrary onSelect={value => setDraft(previous => ({ ...previous, cvText: value.text }))} /></div>
+        <section id="profile-identity" className="app-panel p-5 sm:p-7"><p className="app-eyebrow">Coordonnées · à vérifier</p>
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
             <User size={15} className="text-muted" /> Identité
           </div>
@@ -115,7 +105,7 @@ export function ProfilePage() {
             une vraie lettre.
           </p>
         </section>
-        <section className="rounded-xl border border-line bg-surface p-5">
+        <details id="profile-text" className="app-panel p-5"><summary className="font-semibold">Texte source et import sans original</summary><div className="mt-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <FileUp size={15} className="text-muted" /> Texte source historique — original non conservé
           </div>
@@ -147,6 +137,7 @@ export function ProfilePage() {
           <textarea
             className={inputClass}
             rows={8}
+            aria-label="Texte source du profil"
             value={settings.cvText}
             onChange={(e) => setDraft((previous) => ({ ...previous, cvText: e.target.value }))}
             placeholder="…ou colle ici le contenu texte de ton CV"
@@ -154,7 +145,20 @@ export function ProfilePage() {
           <p className="mt-2 text-[11px] text-muted">
             Ce CV alimente l'analyse (page Amélioration CV) et les lettres de motivation.
           </p>
-        </section>
+</div></details>
+        <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="app-primary">{saving ? 'Enregistrement…' : 'Enregistrer l’identité et le texte source'}</button>
+        {saved && !dirty && <p role="status" className="text-sm text-emerald-700">Identité et texte source enregistrés.</p>}
+        {fileError && <p role="alert" className="text-sm text-rose-700 dark:text-rose-400">{fileError}</p>}
+
+        <details id="profile-versions" className="app-panel p-5"><summary className="text-lg font-semibold">Préparer et gérer mes versions de CV</summary><div className="mt-5 space-y-6">
+        <CvDocumentsPanel profileApply={proposal => setDraft(previous => ({...previous,
+          ...(proposal.name ? {profileName:proposal.name} : {}), ...(proposal.title ? {profileTitle:proposal.title} : {}),
+          ...(proposal.contact?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) ? {profileEmail:proposal.contact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)![0]} : {}),
+          ...(proposal.contact?.match(/(?:\+33\s*\(?0?\)?|0)[1-9](?:[ .-]?\d{2}){4}/) ? {profilePhone:proposal.contact.match(/(?:\+33\s*\(?0?\)?|0)[1-9](?:[ .-]?\d{2}){4}/)![0]} : {}),
+          ...(proposal.contact?.match(/\b\d{5}\s+[^\n]+/) ? {profileCity:proposal.contact.match(/\b\d{5}\s+[^\n]+/)![0]} : {})
+        }))} />
+        <OrphanDocuments />
+        </div></details>
       </div>
     </div>
   )

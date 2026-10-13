@@ -139,11 +139,11 @@ export function CvPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-6xl">
       <DraftGuard dirty={cvDraft !== null || pasteText.length > 0} />
       {linked && <p className="mb-3 text-sm text-muted">Analyse liée à {linked.company} — {linked.title}. Elle sera visible dans ce dossier.</p>}
       {appId && !linked && <p role="alert" className="mb-3 text-sm text-rose-700 dark:text-rose-300">Le dossier lié est introuvable. Retourne aux candidatures avant de lancer une analyse.</p>}
-      <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+      <p className="app-eyebrow">Documents · Analyse</p><h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
         <Sparkles size={22} className="text-indigo-700 dark:text-indigo-400" /> Analyse du CV
       </h1>
       <p className="mb-8 text-sm text-muted">
@@ -156,7 +156,7 @@ export function CvPage() {
           <section className="app-panel p-5">
             <label className="mb-4 block text-sm">Version du CV analysée<select className="app-field" disabled={loading} value={cvVersionId} onChange={(event)=>setCvVersionId(event.target.value)}><option value="">Texte source du profil</option>{cvVersions.map(version=><option value={version.id} key={version.id}>{version.title} · v{version.number} · {new Date(version.createdAt).toLocaleDateString('fr-FR')}</option>)}</select></label>
             {selectedCv && <details className="mb-4"><summary>Contenu exact du CV sélectionné</summary><pre className="whitespace-pre-wrap text-sm">{selectedText}</pre></details>}
-            <label className="mb-1.5 block text-xs font-medium text-muted">
+            <details className="mt-4"><summary className="text-sm font-medium">Lire ou modifier le texte source{cvDraft!==null && <span className="ml-2 text-xs text-amber-700">À enregistrer</span>}</summary><div className="mt-3">            <label className="mb-1.5 block text-xs font-medium text-muted">
               Ton CV — dépose le fichier ou colle le texte (mémorisé)
             </label>
             <button
@@ -186,6 +186,7 @@ export function CvPage() {
             <textarea
               className={areaClass}
               rows={8}
+              aria-label="Texte source du CV"
               value={cvDraft ?? settings.cvText}
               onChange={(e) => setCvDraft(e.target.value)}
               placeholder="…ou colle ici le contenu texte de ton CV"
@@ -195,12 +196,14 @@ export function CvPage() {
               try { await saveSettings({ cvText: submitted }); setCvDraft((current) => current === submitted ? null : current); setError('') }
               catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
             }}>Enregistrer le CV</button>}
+</div></details>
           </section>
           <section className="app-panel p-5">
             <label className="mb-1.5 block text-xs font-medium text-muted">Fiche de poste</label>
             <textarea
+              aria-label="Fiche de poste"
               className={areaClass}
-              rows={9}
+              rows={6}
               value={offer}
               onChange={(e) => setOffer(e.target.value)}
               placeholder="Colle ici l'offre d'emploi (LinkedIn, HelloWork, Indeed…)"
@@ -227,7 +230,7 @@ export function CvPage() {
               <button
                 onClick={runApi}
                 disabled={!ready || loading}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 disabled:opacity-50"
+                className="app-primary"
               >
                 {loading ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
                 {loading ? 'Analyse en cours…' : `Analyser (${settings.model})`}
@@ -236,10 +239,25 @@ export function CvPage() {
           </div>
           {error && <p className="text-sm text-rose-700 dark:text-rose-400">{error}</p>}
 
-          <ProviderPicker withKeys />
+          <details className="app-panel p-5"><summary className="text-sm font-semibold">Fournisseur et modèle IA</summary><div className="mt-4"><ProviderPicker withKeys /></div></details>
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
+          {!current && <div className="app-empty"><Sparkles size={28} className="mx-auto mb-4 text-[#148268]" aria-hidden="true" /><h2 className="text-xl font-semibold">Une lecture claire de ton CV</h2><p className="mt-2 text-sm text-muted">Choisis tes sources pour lancer une analyse, ou ouvre un résultat dans l’historique.</p></div>}
+          {current && (
+            <section className="app-panel p-5 sm:p-7"><p className="app-eyebrow">Résultat · analyse historique</p>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">{current.jobTitle}</h3>
+                {current.score !== null && (
+                  <span className={`rounded-full border px-2.5 py-0.5 text-sm font-bold ${scoreColor(current.score)}`}>
+                    {current.score}/100
+                  </span>
+                )}
+              </div>
+              <AnalysisApplicationLink key={current.id} analysis={current} />
+              <p className="mb-4 text-xs text-muted">Note historique indicative ; elle ne constitue pas une décision.</p><AnalysisContent text={current.result} />
+            </section>
+          )}
           <section className="rounded-xl border border-line bg-surface">
             <div className="border-b border-line px-4 py-3 text-sm font-semibold">
               Historique des analyses ({analyses.length})
@@ -285,20 +303,6 @@ export function CvPage() {
             )}
           </section>
 
-          {current && (
-            <section className="rounded-xl border border-line bg-surface p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">{current.jobTitle}</h3>
-                {current.score !== null && (
-                  <span className={`rounded-full border px-2.5 py-0.5 text-sm font-bold ${scoreColor(current.score)}`}>
-                    {current.score}/100
-                  </span>
-                )}
-              </div>
-              <AnalysisApplicationLink key={current.id} analysis={current} />
-              <p className="mb-4 text-xs text-muted">Note historique indicative ; elle ne constitue pas une décision.</p><AnalysisContent text={current.result} />
-            </section>
-          )}
         </div>
       </div>
 
@@ -327,7 +331,7 @@ export function CvPage() {
               </button>
               <button
                 onClick={savePasted}
-                className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700"
+                className="app-primary"
               >
                 Enregistrer l'analyse
               </button>
