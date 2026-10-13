@@ -1,4 +1,4 @@
-import { validateActionInput, validateAction, validateNotificationReadState, actionNotifications } from '../src/actions-core.mjs'
+import { validateActionInput, validateAction, validateNotificationReadState, actionNotifications } from '../shared/domain/actions-core.mjs'
 import { interviewSnapshot } from './interviews.mjs'
 
 export function initializeActions(db) {

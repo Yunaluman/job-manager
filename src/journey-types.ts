@@ -1,7 +1,1 @@
-export interface Criterion { id: string; label: string; importance: 'required' | 'preferred' }
-export interface OfferAcquisition { initialUrl: string; finalUrl: string; retrievedAt: string; text: string }
-export interface Offer { acquisition?: OfferAcquisition; id: string; company: string; title: string; text: string; url: string; note: string; createdAt: string; updatedAt: string; decision: 'pending' | 'go' | 'later' | 'rejected'; applicationId?: string; decisions: { at: string; decision: Offer['decision']; reason: string }[] }
-export interface Qualification { summary?: import('./qualification-core.mjs').QualificationSummary; proposals?: import('./qualification-core.mjs').QualificationProposal[]; proposalModel?:string; id: string; offerId: string; offerText: string; cvText: string; createdAt: string; cvVersionId?: string; entries: { criterionId: string; label: string; importance: Criterion['importance']; result: 'met' | 'unmet' | 'unknown'; justification: string; provenance: 'manual'|'ai-reviewed'; cvEvidence?:string; offerEvidence?:string }[]; analysis?: { text: string; score: number | null; mode: 'manual' | 'api'; model: string } }
-export interface JourneyState { offers: Offer[]; criteria: Criterion[]; qualifications: Qualification[]; documents: JobDocument[]; documentVersions: DocumentVersion[]; submissions: Submission[] }
-import type { JobDocument, DocumentVersion } from './document-types'
-import type { Submission } from './submission-types'
+export * from '../shared/contracts/journey-types'

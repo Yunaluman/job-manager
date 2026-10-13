@@ -1,6 +1,1 @@
-export function migrateLegacyList(options: {
-  storage: Pick<Storage, 'getItem' | 'removeItem'>
-  key: string
-  current: unknown[]
-  save(rows: unknown[]): Promise<unknown>
-}): Promise<void>
+export * from '../shared/domain/legacy-migration.mjs'

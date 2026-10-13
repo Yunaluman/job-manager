@@ -1,5 +1,5 @@
 import { dataStore } from './data'
-import type { JobDocument, DocumentVersion, DocumentInput } from './document-types'
+import type { JobDocument, DocumentVersion, DocumentInput } from '../shared/contracts/document-types'
 export const DOCUMENT_STATUS = { draft: 'Brouillon', ready: 'Prêt', archived: 'Archivé' }
 export function saveDocument(id: string, input: DocumentInput) {
   return dataStore.mutate<{ document: JobDocument; version: DocumentVersion }>(() => ({ method: 'POST', path: `documents/${encodeURIComponent(id)}/versions`, body: input, apply: (state, result) => ({ ...state, journey: { ...state.journey, documents: [...state.journey.documents.filter((doc) => doc.id !== id), result.document], documentVersions: [...state.journey.documentVersions, result.version] } }) }))

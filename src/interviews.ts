@@ -1,6 +1,6 @@
 import { dataStore } from './data'
-import type { InterviewPlan, InterviewPlanInput } from './interview-types'
-import { validateInterviewPlan, interviewNotificationId } from './interviews-core.mjs'
+import type { InterviewPlan, InterviewPlanInput } from '../shared/contracts/interview-types'
+import { validateInterviewPlan, interviewNotificationId } from '../shared/domain/interviews-core.mjs'
 
 export const INTERVIEW_STATUS_LABELS = { planned: 'Planifié', closed: 'Suivi clos', cancelled: 'Annulé' }
 export const INTERVIEW_HISTORY_LABELS = { created: 'Créé', updated: 'Corrigé', rescheduled: 'Reporté', closed: 'Suivi clos', cancelled: 'Annulé', reopened: 'Rouvert' }

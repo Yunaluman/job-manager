@@ -1,3 +1,4 @@
+import { Button } from '../shared/ui/Button'
 import { useRef, useState } from 'react'
 import { synchronize, usePersistenceStatus } from '../data'
 import { DraftGuard } from './DraftGuard'
@@ -10,7 +11,7 @@ export function WriteForm({ dirty, save, children, label = 'Enregistrer', onSave
     <DraftGuard dirty={dirty} /><fieldset disabled={busy || disabled} className="space-y-4">{children}</fieldset>
     {success && !dirty && <p role="status" className="mt-3 text-sm text-emerald-700">Enregistrement confirmé.</p>}
     {error && <p role="alert" className="mt-3 text-sm text-rose-700 dark:text-rose-300">{error}</p>}
-    {status.blocked && <button type="button" className="app-button mt-3" disabled={busy || status.pending > 0} onClick={() => void synchronize().catch((reason) => setError(reason.message))}>Synchroniser sans perdre le brouillon</button>}
-    <button className="app-primary mt-4" disabled={disabled || busy || status.blocked || !status.ready}>{busy ? 'Enregistrement…' : label}</button>
+    {status.blocked && <Button type="button" className="app-button mt-3" disabled={busy || status.pending > 0} onClick={() => void synchronize().catch((reason) => setError(reason.message))}>Synchroniser sans perdre le brouillon</Button>}
+    <Button type="submit" className="app-primary mt-4" disabled={disabled || busy || status.blocked || !status.ready}>{busy ? 'Enregistrement…' : label}</Button>
   </form>
 }

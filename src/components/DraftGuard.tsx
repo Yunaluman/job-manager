@@ -1,3 +1,4 @@
+import { Button } from '../shared/ui/Button'
 import { useEffect, useId, useSyncExternalStore } from 'react'
 import { useBlocker } from '@tanstack/react-router'
 import { useModalFocus } from '../useModalFocus'
@@ -30,8 +31,8 @@ export function DraftNavigationGuard() {
     <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Modifications non enregistrées" className="max-w-md rounded-xl border border-amber-500/40 bg-surface p-6">
       <p>Des modifications ne sont pas enregistrées. Quitter abandonnera les brouillons de cette page.</p>
       <p className="mt-2 text-sm text-muted">Rester permet de continuer ; cela n’enregistre rien.</p><div className="mt-4 flex flex-wrap gap-3">
-        <button className="app-primary" onClick={() => blocker.reset()}>Rester et continuer</button>
-        <button className="px-3 py-2 text-rose-700 dark:text-rose-300" onClick={() => blocker.proceed()}>Quitter sans enregistrer</button>
+        <Button type="submit" className="app-primary" onClick={() => blocker.reset()}>Rester et continuer</Button>
+        <Button type="submit" className="px-3 py-2 text-rose-700 dark:text-rose-300" onClick={() => blocker.proceed()}>Quitter sans enregistrer</Button>
       </div>
     </div>
   </div>

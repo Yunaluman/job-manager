@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { validEventDate, applicationEvents } from '../src/application-events.mjs'
+import { validEventDate, applicationEvents } from '../shared/domain/application-events.mjs'
 
 export const REGISTER_FORMAT = 'candidatures-csv-v1'
 const required = ['id', 'entreprise', 'intitule_poste', 'localisation', 'source', 'url', 'date_candidature', 'statut', 'date_relance', 'date_reponse', 'resultat', 'fichier_cv', 'fichier_lm', 'notes']

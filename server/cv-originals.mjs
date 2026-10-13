@@ -1,4 +1,4 @@
-import { validatePrefill, PREFILL_FIELDS } from '../src/cv-prefill.mjs'
+import { validatePrefill, PREFILL_FIELDS } from '../shared/domain/cv-prefill.mjs'
 import { createHash } from 'node:crypto'
 const fail = message => { throw Object.assign(new Error(message), { status: 400 }) }
 export const MAX_CV_BYTES = 5 * 1024 * 1024

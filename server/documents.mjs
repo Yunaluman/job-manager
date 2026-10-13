@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { fail, exact, id } from './journey.mjs'
 import { validateDocument, validateDocumentVersion } from './document-model.mjs'
 import { renderDocument } from './document-export.mjs'
-import { cvText } from '../src/cv-document.mjs'
+import { cvText } from '../shared/domain/cv-document.mjs'
 export function registerDocumentRoutes(app, db, confirmWrite) {
   const get = (table, key) => { const row = db.prepare(`SELECT data FROM ${table} WHERE id = ?`).get(key); return row && JSON.parse(row.data) }
   const save = (documentId, input) => {
