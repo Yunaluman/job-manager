@@ -1,5 +1,6 @@
 import type { Action, ActionInput, ActionNotification, NotificationReadState } from './action-types'
 import type { Application } from './types'
+import type { InterviewPlan } from './interview-types'
 export const ACTION_KINDS: ActionInput['kind'][]
 export const ACTION_PRIORITIES: ActionInput['priority'][]
 export const ACTION_STATUSES: ActionInput['status'][]
@@ -13,5 +14,5 @@ export function actionBucket(action: { dueDate?: string }, day: string): 'overdu
 export function sortActions(actions: Action[]): Action[]
 export function isOpenDossier(application: Application): boolean
 export function sourceDeadlines(applications: Application[], actions: Action[]): { application: Application; dueDate: string; managedActionId?: string }[]
-export function dossiersToDecide(applications: Application[], actions: Action[]): Application[]
-export function actionNotifications(actions: Action[], applications: Application[], reads?: NotificationReadState[], day?: string): ActionNotification[]
+export function dossiersToDecide(applications: Application[], actions: Action[], interviewPlans?: InterviewPlan[]): Application[]
+export function actionNotifications(actions: Action[], applications: Application[], reads?: NotificationReadState[], day?: string, interviewPlans?: InterviewPlan[]): ActionNotification[]

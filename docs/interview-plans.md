@@ -20,4 +20,20 @@ The dossier summary and Actions page expose planned interviews, declared sources
 
 Forms preserve drafts on failure or conflict. After synchronization, concurrent changes are displayed alongside the draft for explicit comparison; nothing is automatically retried or merged. Preparation reuses existing actions and keeps the date captured at attachment visible after a report.
 
-Reminders follow in the final dependent PR. Each part requires review and correction before the next part; no automatic merge.
+## Reminders
+
+Interview reminders reuse the existing shared Paris day clock and notification center: tomorrow, today, then **past date — realization not recorded in this follow-up**. Their stable identity is independent of preparation actions. Reading never closes either record; completing preparation never suppresses the appointment reminder. Changing the planned day or state clears obsolete read confirmation in the same transaction. Returning to an earlier date or reopening makes the reminder unread again. New confirmations for resolved or outdated alerts are refused; identical operation replay retains the original acknowledgement.
+
+Closed/cancelled follow-ups have no reminder. Refused/inactive dossiers and orphan links do not imply cancellation. Orphan notifications link to the preserved follow-up in Actions. The dashboard counts past interview follow-ups separately from overdue tasks; an explicit planned interview supplies an existing follow-up instead of adding its dossier to the decision queue. Planning, action, journey and notification results are hidden during loading, uncertain writes and synchronization errors rather than displayed as false zeros.
+
+There is no background service, system notification, provider call or automatic event conversion. Historical interview milestones, response metrics and Bilan calculations remain separate.
+
+## Verified on 2026-10-13
+
+- Complete suite: 116 tests passed. The 11 interview tests include real Windows DPAPI backup/restore, v1-v5 compatibility, source-date validation, same-day distinct appointments, receipt replay, stale read refusal, rollback, CSV refresh, orphan handling and byte-for-byte preservation of dossier records plus immutable document/submission collections.
+- TypeScript and final production build passed; the existing Vite large-chunk warning remains.
+- Synthetic production-browser checks at desktop 1440x1000 and mobile 390x844 covered invitation creation, preparation linkage, rescheduling without shifting preparation, closure/reopening, unchanged historical milestones, concurrent draft preservation and latest-value comparison, keyboard focus wrapping, distinct reminder identities/read confirmations, past-date wording, CSV-local provenance, inactive/orphan follow-ups and notification navigation.
+- A real synthetic-server stop/restart preserved the browser draft; explicit synchronization renewed the session and a subsequent confirmation saved it. Separate injected loading/failure checks displayed unavailable state and recovered through synchronization. No real CSV, personal database or paid provider was used.
+- Local review corrected restored preparation-date provenance, exposed concurrent confirmed values next to drafts, and hid unconfirmed zero counts. Independent review has not been performed. Each dependent PR remains unmerged.
+
+The two temporary control tabs were closed and the viewport override reset. All three fixture-server PIDs used during restart checks were absent at cleanup; no identified children or listener on the control port remained. Existing services were preserved.

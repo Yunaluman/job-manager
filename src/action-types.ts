@@ -19,6 +19,6 @@ export interface Action extends ActionInput {
 }
 export interface NotificationReadState { id: string; dueDate: string; stage: 'tomorrow' | 'today' | 'overdue'; readAt: string }
 export interface ActionNotification {
-  id: string; actionId?: string; applicationId?: string; title: string; dueDate: string
-  stage: NotificationReadState['stage']; origin: 'action' | 'source'; unread: boolean; priority: ActionInput['priority']
+  id: string; actionId?: string; applicationId?: string; interviewPlanId?: string; title: string; dueDate: string
+  stage: NotificationReadState['stage']; origin: 'action' | 'source' | 'interview'; unread: boolean; priority: ActionInput['priority']
 }
