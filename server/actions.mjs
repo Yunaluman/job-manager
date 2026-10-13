@@ -1,4 +1,5 @@
 import { validateActionInput, validateAction, validateNotificationReadState, actionNotifications } from '../src/actions-core.mjs'
+import { interviewSnapshot } from './interviews.mjs'
 
 export function initializeActions(db) {
   db.exec('CREATE TABLE IF NOT EXISTS actions (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS notification_reads (id TEXT PRIMARY KEY, data TEXT NOT NULL);')
@@ -35,6 +36,12 @@ export function registerActionRoutes(app, db, confirmWrite) {
       const input = req.body
       const dossier = input.applicationId && applications().find((item) => item.id === input.applicationId)
       if (input.applicationId && !dossier && previous?.applicationId !== input.applicationId) fail('Dossier lié introuvable.')
+      if (input.interviewPlan) {
+        const plan = interviewSnapshot(db).find(item => item.id === input.interviewPlan.id)
+        const changed = input.interviewPlan.id !== previous?.interviewPlan?.id || input.interviewPlan.scheduledDate !== previous?.interviewPlan?.scheduledDate
+        if (!plan || plan.applicationId !== input.applicationId || (changed && (!dossier || plan.scheduledDate !== input.interviewPlan.scheduledDate))) fail('Entretien lié modifié ou introuvable. Synchronise avant de préparer cette action.')
+        if (input.status === 'todo' && rows().actions.some(action => action.id !== input.id && action.status === 'todo' && action.interviewPlan?.id === plan.id)) fail('Une préparation est déjà ouverte pour cet entretien.')
+      }
       const sourceChanged = input.source && (input.source.applicationId !== previous?.source?.applicationId || input.source.dueDate !== previous?.source?.dueDate)
       if (sourceChanged && (!dossier || dossier.nextActionAt !== input.source.dueDate)) fail('Échéance source modifiée. Synchronise avant de créer cette action.')
       if (input.source && (sourceChanged || input.status === 'todo') && rows().actions.some((action) => action.id !== input.id && action.source?.applicationId === input.source.applicationId && (action.status === 'todo' || action.source.dueDate === input.source.dueDate))) fail('Cette échéance source possède déjà une action. Modifie ou rouvre cette action.')
