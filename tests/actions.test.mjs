@@ -149,7 +149,7 @@ test('v3 portable and encrypted backups preserve planning; v1/v2 stay empty and 
   const notification = (await call('/api/notifications')).body[0]
   await call('/api/notifications/read', 'POST', [{ id: notification.id, dueDate: notification.dueDate, stage: notification.stage }])
   const snapshot = exportSnapshot(db, {})
-  assert.equal(snapshot.version, 6)
+  assert.equal(snapshot.version, 7)
   for (const version of [1, 2]) assert.throws(() => exportSnapshot(db, {}, version), /v3/)
   const portablePath = join(destination, 'portable.db'); restoreSnapshot(snapshot, portablePath)
   const portable = new Database(portablePath)
