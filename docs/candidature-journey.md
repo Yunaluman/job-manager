@@ -1,5 +1,7 @@
 # Candidature journey
 
+Current portable snapshots use v5 to include independent [planned interviews](interview-plans.md). The v4 references below describe the delivered journey lots; their collections and immutable versions are preserved in v5.
+
 ## Lot 1: offers and decisions
 
 Offers are collected manually with a pasted body and optional HTTP(S) link. Field suggestions are local and require review; no fetch or paid extraction occurs implicitly. Search criteria distinguish required constraints and preferences. Qualifications retain exact offer/CV source text, manual criterion assessments including unknowns, and optional indicative analysis with declared provenance. A score is never an automatic decision or measured hiring/ATS probability.

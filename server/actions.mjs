@@ -56,13 +56,13 @@ export function registerActionRoutes(app, db, confirmWrite) {
     })
   })
   app.get('/api/notifications', (_req, res) => {
-    const planning = rows(); res.json(actionNotifications(planning.actions, applications(), planning.notificationReads))
+    const planning = rows(); res.json(actionNotifications(planning.actions, applications(), planning.notificationReads, undefined, interviewSnapshot(db)))
   })
   app.post('/api/notifications/read', (req, res) => {
     if (!Array.isArray(req.body) || !req.body.length || req.body.length > 10000 || new Set(req.body.map((item) => item?.id)).size !== req.body.length) fail('Sélection de notifications invalide.')
     confirmWrite(req, res, () => {
       const planning = rows()
-      const current = actionNotifications(planning.actions, applications(), planning.notificationReads)
+      const current = actionNotifications(planning.actions, applications(), planning.notificationReads, undefined, interviewSnapshot(db))
       for (const selected of req.body) {
         if (!selected || typeof selected !== 'object' || Object.keys(selected).some((key) => !['id', 'dueDate', 'stage'].includes(key)) ||
           !current.some((item) => item.id === selected.id && item.dueDate === selected.dueDate && item.stage === selected.stage)) fail('Notification modifiée ou résolue. Actualise les alertes.')
