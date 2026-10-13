@@ -1,3 +1,4 @@
+import { OriginalLibrary } from '../components/OriginalLibrary'
 import { AnalysisContent } from '../components/AnalysisContent'
 import { useEffect, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
@@ -149,6 +150,7 @@ export function CvPage() {
         Évaluer les correspondances, écarts et inconnues. Les notes restent indicatives ; aucune compatibilité ATS ou probabilité d’embauche n’est mesurée.
       </p>
 
+      <details className="mb-6"><summary className="app-button cursor-pointer">Choisir un fichier CV original</summary><OriginalLibrary onSelect={value => setCvDraft(value.text)} /></details>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="flex min-w-0 flex-col gap-6">
           <section className="app-panel p-5">
@@ -179,7 +181,7 @@ export function CvPage() {
               {extracting ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
               {extracting
                 ? 'Extraction du texte…'
-                : 'Déposer mon CV (PDF, DOCX, TXT) — traité localement, jamais envoyé'}
+                : 'Extraire un texte sans conserver le fichier'}
             </button>
             <textarea
               className={areaClass}

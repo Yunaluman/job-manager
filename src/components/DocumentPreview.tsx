@@ -1,3 +1,4 @@
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { useEffect, useRef, useState } from 'react'
 import type { DocumentVersion } from '../document-types'
 import { documentBytes } from '../documents'
@@ -7,7 +8,7 @@ export function DocumentPreview({ version, close }: { version: DocumentVersion; 
     let disposed = false, task: import('pdfjs-dist').PDFDocumentLoadingTask | undefined
     void (async () => {
       const blob = await documentBytes(version, 'pdf'), pdf = await import('pdfjs-dist')
-      pdf.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default
+      pdf.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
       if (disposed) return
       task = pdf.getDocument({ data: await blob.arrayBuffer() }); const doc = await task.promise
       if (disposed) return
