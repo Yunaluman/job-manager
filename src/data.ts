@@ -8,6 +8,8 @@ import type { AiConfig } from './ai-monitoring'
 import type { Action, NotificationReadState } from './action-types'
 import { validateAction, validateNotificationReadState } from './actions-core.mjs'
 import type { JourneyState } from './journey-types'
+import type { InterviewPlan } from './interview-types'
+import { validateInterviewPlans } from './interviews-core.mjs'
 
 export interface DataState {
   revision: number
@@ -18,9 +20,10 @@ export interface DataState {
   actions: Action[]
   notificationReads: NotificationReadState[]
   journey: JourneyState
+  interviewPlans: InterviewPlan[]
 }
 const initialState: DataState = {
-  revision: 0, applications: [], analyses: [], actions: [], notificationReads: [],
+  revision: 0, applications: [], analyses: [], actions: [], notificationReads: [], interviewPlans: [],
   journey: { offers: [], criteria: [], qualifications: [], documents: [], documentVersions: [], submissions: [] },
   aiConfig: { monthlyLimitCents: null, tariffs: [] },
   settings: { keyStatus: {}, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', cvText: '', profileName: '', profileEmail: '', profilePhone: '', profileCity: '', profileTitle: '' },
@@ -33,6 +36,7 @@ export const dataStore = createConfirmedStore<DataState>({
     if (!loaded.journey || !['offers','criteria','qualifications','documents','documentVersions','submissions'].every(key=>Array.isArray(loaded.journey[key as keyof JourneyState]))) throw new Error('Parcours indisponible. Redémarre puis synchronise.')
     if (!Array.isArray(loaded.actions) || !Array.isArray(loaded.notificationReads)) throw new Error('Planning absent. Redémarre JobPilot puis synchronise.')
     loaded.actions.forEach(validateAction); loaded.notificationReads.forEach(validateNotificationReadState)
+    validateInterviewPlans(loaded.interviewPlans, loaded.actions)
     if (!loaded.aiConfig || !Array.isArray(loaded.aiConfig.tariffs) || (loaded.aiConfig.monthlyLimitCents !== null && (!Number.isSafeInteger(loaded.aiConfig.monthlyLimitCents) || loaded.aiConfig.monthlyLimitCents < 0))) throw new Error('Configuration IA absente ou invalide. Redémarre JobPilot puis synchronise.')
     return { ...loaded, settings: { ...initialState.settings, ...loaded.settings } }
   },
