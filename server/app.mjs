@@ -1,3 +1,4 @@
+import { prefillPrompt, validatePrefill } from '../src/cv-prefill.mjs'
 import { initializeOriginals, originalSnapshot, originalMetadata, registerOriginalRoutes } from './cv-originals.mjs'
 import express from 'express'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
@@ -203,9 +204,15 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   app.put('/api/ai/config', (req, res) => confirmWrite(req, res, () => monitoring.setBudget(req.body)))
   app.post('/api/ai/tariffs', (req, res) => confirmWrite(req, res, () => monitoring.addTariff(req.body)))
   app.post('/api/ai', async (req, res) => {
-    const { prompt, baseUrl, model, purpose, maxTokens = 1600, temperature = 0.3 } = req.body ?? {}
+    let { prompt, baseUrl, model, purpose, sourceId, maxTokens = 1600, temperature = 0.3 } = req.body ?? {}
+    let original
+    if (purpose === 'cv-structuring') {
+      const row = typeof sourceId === 'string' && db.prepare('SELECT data FROM cv_originals WHERE id = ?').get(sourceId)
+      if (!row) return res.status(400).json({ error: 'Original CV absent.' })
+      original = JSON.parse(row.data); prompt = prefillPrompt(original.text)
+    } else if (sourceId !== undefined) return res.status(400).json({ error: 'Source non autorisée pour cet appel.' })
     const provider = providerForUrl(baseUrl)
-    if (!provider || !PURPOSES.includes(purpose) || typeof prompt !== 'string' || !prompt.trim() || prompt.length > 30000 || typeof model !== 'string' || !/^[\w./:-]{1,120}$/.test(model) || !Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 2000 || ![0, 0.3].includes(temperature) || Object.keys(req.body).some((key) => !['prompt', 'baseUrl', 'model', 'purpose', 'maxTokens', 'temperature'].includes(key))) return res.status(400).json({ error: 'Requête IA invalide.' })
+    if (!provider || !PURPOSES.includes(purpose) || typeof prompt !== 'string' || !prompt.trim() || prompt.length > 30000 || typeof model !== 'string' || !/^[\w./:-]{1,120}$/.test(model) || !Number.isInteger(maxTokens) || maxTokens < 1 || maxTokens > 2000 || ![0, 0.3].includes(temperature) || Object.keys(req.body).some((key) => !['prompt', 'baseUrl', 'model', 'purpose', 'sourceId', 'maxTokens', 'temperature'].includes(key))) return res.status(400).json({ error: 'Requête IA invalide.' })
     if (inFlight) return res.status(429).json({ error: 'Un appel IA est déjà en cours.' })
     const key = credentials.get(provider)
     if (!key) return res.status(400).json({ error: 'Aucune clé pour ce fournisseur.' })
@@ -232,7 +239,13 @@ export function createApp({ db, protector, port, development = false, fetchProvi
         if (typeof content !== 'string' || content.length > 100000 || content.includes(key)) {
           outcome = { status: 'error', errorKind: 'response', response }
           reply = { error: 'Réponse du fournisseur invalide.' }
-        } else { outcome = { status: 'success', response }; reply = { content }; httpStatus = 200 }
+        } else {
+          if (original) {
+            try { validatePrefill(JSON.parse(content).proposals, original.text) }
+            catch { outcome = { status: 'error', errorKind: 'response', response }; reply = { error: 'Structure CV invalide ou non documentée. Le brouillon est conservé.' }; httpStatus = 502 }
+          }
+          if (!original || !reply.error || outcome.errorKind !== 'response') { outcome = { status: 'success', response }; reply = { content }; httpStatus = 200 }
+        }
       }
     } catch (error) {
       outcome = error instanceof SyntaxError ? { status: 'error', errorKind: 'response' } : { status: 'uncertain', errorKind: ['TimeoutError', 'AbortError'].includes(error?.name) ? 'timeout' : 'transport' }
