@@ -15,6 +15,7 @@ export function validateOriginal(value) {
 export function validateOriginals(values, journey) {
   if (!Array.isArray(values) || values.length > 1000 || new Set(values.map(value => value.id)).size !== values.length) fail('Bibliothèque CV invalide.')
   values.forEach(validateOriginal)
+  for (const submission of journey.submissions ?? []) if (submission.cvOriginalId && !values.some(value=>value.id===submission.cvOriginalId)) fail('Original CV déclaré absent.')
   for (const version of journey.documentVersions) {
     const original = values.find(value => value.id === version.sources.originalId)
     if (version.sources.originalId && !original) fail('Fichier source du CV absent.')

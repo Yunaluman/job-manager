@@ -1,6 +1,9 @@
+import { isCsvReadOnly } from '../../../shared/contracts/types'
 import { Button } from '../../shared/ui/Button'
 import { useRef, useState } from 'react'
 import type { Application, ApplicationEvent } from '../../../shared/contracts/types'
+import { withDeclaredSends } from '../../../shared/domain/journey-progress.mjs'
+import { useData } from '../../data'
 import { applicationEvents } from '../../../shared/domain/application-events.mjs'
 import { recordApplicationEvent, removeApplicationEvent, updateApplication } from '../../storage'
 import { useAnalyses } from '../../cv'
@@ -8,7 +11,7 @@ import { DraftGuard } from '../../components/DraftGuard'
 import { useModalFocus } from '../../useModalFocus'
 
 const labels: Record<ApplicationEvent['kind'], string> = {
-  sent: 'Envoi', response: 'Réponse', interview: 'Entretien', offer: 'Offre', refusal: 'Refus',
+  sent: 'Envoi', response: 'Réponse', interview: 'Entretien', offer: 'Offre', refusal: 'Refus', followup: 'Relance',
 }
 const fmt = (date: string) => new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR')
 
@@ -22,7 +25,8 @@ export function ApplicationTimeline({ application: app }: { application: Applica
   const confirmationRef = useModalFocus<HTMLDivElement>(Boolean(confirmation), () => setConfirmation(null))
   const inFlight = useRef(false)
   const analyses = useAnalyses().filter((analysis) => analysis.applicationId === app.id)
-  const events = [...applicationEvents(app)].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+  const {journey} = useData()
+  const events = [...applicationEvents(withDeclaredSends(app,journey.submissions))].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
   function reset() { setDate(''); setEditingId(undefined) }
   async function write(action: () => Promise<unknown>) {
     if (inFlight.current) return
@@ -34,15 +38,15 @@ export function ApplicationTimeline({ application: app }: { application: Applica
   return <section className="app-panel mb-6 p-5">
     <DraftGuard dirty={Boolean(date)} />
     <h2 className="mb-3 font-semibold">Étapes documentées</h2>
-    <p className="mb-3 text-sm text-muted">{app.register ? 'Dates issues des colonnes explicites du CSV. Pour les corriger, modifie le registre puis réimporte son aperçu.' : 'Le statut ne prouve pas un envoi. Renseigne la date réelle de chaque étape.'}</p>
+    <p className="mb-3 text-sm text-muted">{isCsvReadOnly(app) ? 'Dates issues des colonnes explicites du CSV. Pour les corriger, modifie le registre puis réimporte son aperçu.' : 'Le statut ne prouve pas un envoi. Renseigne la date réelle de chaque étape.'}</p>
     {app.eventHistoryComplete !== true && <p className="mb-3 text-sm text-amber-700 dark:text-amber-300">Historique incomplet : les étapes manquantes restent inconnues.</p>}
     {!events.length && <p className="mb-4 text-sm text-muted">Aucune étape datée renseignée.</p>}
     <ul className="mb-4 space-y-2 text-sm">{events.map((event) => <li className="flex flex-wrap items-center gap-2" key={event.id}>
       <span>{labels[event.kind]} — {fmt(event.occurredAt)}</span>
       {event.source === 'legacy-date' && <span className="text-muted">(date déjà renseignée{app.register && ' · archive locale'})</span>}
-      {event.source === 'manual' && app.register && <span className="text-muted">(archive locale datée)</span>}
+      {event.source === 'manual' && <span className="text-muted">{event.id.startsWith('declared:') ? '(déclaration humaine)' : app.register?.retainedEvents?.some(item => item.id === event.id) ? '(archive locale datée)' : '(saisie JobPilot)'}</span>}
       {event.source === 'register-date' && <span className="text-muted">(date du registre)</span>}
-      {!app.register && <>
+      {!isCsvReadOnly(app) && event.source !== 'register-date' && !event.id.startsWith('declared:') && <>
       <Button type="submit" className="app-button" disabled={saving} aria-label={`Corriger ${labels[event.kind]} du ${event.occurredAt}`} onClick={() => {
         const select = () => { setEditingId(event.id); setKind(event.kind); setDate(event.occurredAt) }
         if (date) setConfirmation({ message: 'Abandonner la saisie en cours pour corriger cette étape ?', accept: select })
@@ -54,7 +58,7 @@ export function ApplicationTimeline({ application: app }: { application: Applica
       }}>Supprimer</Button>
       </>}
     </li>)}</ul>
-    {!app.register && <><form className="flex flex-wrap gap-3" onSubmit={(e) => {
+    {!isCsvReadOnly(app) && <><form className="flex flex-wrap gap-3" onSubmit={(e) => {
       e.preventDefault()
       void write(async () => { await recordApplicationEvent(app.id, kind, date, editingId); reset() })
     }}>

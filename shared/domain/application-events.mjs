@@ -1,4 +1,4 @@
-export const EVENT_KINDS = ['sent', 'response', 'interview', 'offer', 'refusal']
+export const EVENT_KINDS = ['sent', 'response', 'interview', 'offer', 'refusal', 'followup']
 
 export function validEventDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -8,6 +8,8 @@ export function validEventDate(value) {
 
 export function validateApplicationEvents(application) {
   const fail = () => { throw Object.assign(new Error('Étapes de candidature invalides.'), { status: 400 }) }
+  if (application.registerAdoptedAt !== undefined && (!application.register || typeof application.registerAdoptedAt !== 'string' || !Number.isFinite(Date.parse(application.registerAdoptedAt)))) fail()
+  if (application.preparationCv !== undefined && (!application.preparationCv || !['original','version','profile'].includes(application.preparationCv.kind) || typeof application.preparationCv.id !== 'string' || !application.preparationCv.id || application.preparationCv.id.length > 200 || Object.keys(application.preparationCv).some(key=>!['kind','id'].includes(key)))) fail()
   if (application.eventHistoryComplete !== undefined && typeof application.eventHistoryComplete !== 'boolean') fail()
   if (application.events === undefined) return
   if (!Array.isArray(application.events) || application.events.length > 1000) fail()
