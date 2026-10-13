@@ -1,6 +1,6 @@
 import { dataStore } from './data'
 
-export const purposeNames = { 'cv-structuring': 'Structuration du CV', 'offer-extraction': 'Extraction d’offre', 'cv-analysis': 'Analyse du CV', 'letter-generation': 'Rédaction de lettre' }
+export const purposeNames = { 'offer-qualification': 'Qualification d’offre', 'cv-structuring': 'Structuration du CV', 'offer-extraction': 'Extraction d’offre', 'cv-analysis': 'Analyse du CV', 'letter-generation': 'Rédaction de lettre' }
 export const statusNames = { 'in-progress': 'En cours / résultat non confirmé', success: 'Réussi', error: 'Erreur', uncertain: 'Incertain' }
 export const usageNames: Record<string, string> = { pending: 'en attente', absent: 'absent', invalid: 'invalide', unsupported: 'catégorie non prise en charge', valid: 'valide' }
 export const errorNames: Record<string, string> = { provider: 'Refus du fournisseur', response: 'Réponse invalide', transport: 'Connexion interrompue', timeout: 'Délai dépassé', restart: 'Redémarrage : résultat inconnu' }
