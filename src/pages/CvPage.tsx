@@ -1,3 +1,4 @@
+import { AnalysisContent } from '../components/AnalysisContent'
 import { useEffect, useState } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { useApplications } from '../storage'
@@ -142,15 +143,15 @@ export function CvPage() {
       {linked && <p className="mb-3 text-sm text-muted">Analyse liée à {linked.company} — {linked.title}. Elle sera visible dans ce dossier.</p>}
       {appId && !linked && <p role="alert" className="mb-3 text-sm text-rose-700 dark:text-rose-300">Le dossier lié est introuvable. Retourne aux candidatures avant de lancer une analyse.</p>}
       <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-        <Sparkles size={22} className="text-indigo-700 dark:text-indigo-400" /> Amélioration CV
+        <Sparkles size={22} className="text-indigo-700 dark:text-indigo-400" /> Analyse du CV
       </h1>
       <p className="mb-8 text-sm text-muted">
         Évaluer les correspondances, écarts et inconnues. Les notes restent indicatives ; aucune compatibilité ATS ou probabilité d’embauche n’est mesurée.
       </p>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-6">
-          <section>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <section className="app-panel p-5">
             <label className="mb-4 block text-sm">Version du CV analysée<select className="app-field" disabled={loading} value={cvVersionId} onChange={(event)=>setCvVersionId(event.target.value)}><option value="">Texte source du profil</option>{cvVersions.map(version=><option value={version.id} key={version.id}>{version.title} · v{version.number} · {new Date(version.createdAt).toLocaleDateString('fr-FR')}</option>)}</select></label>
             {selectedCv && <details className="mb-4"><summary>Contenu exact du CV sélectionné</summary><pre className="whitespace-pre-wrap text-sm">{selectedText}</pre></details>}
             <label className="mb-1.5 block text-xs font-medium text-muted">
@@ -193,7 +194,7 @@ export function CvPage() {
               catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
             }}>Enregistrer le CV</button>}
           </section>
-          <section>
+          <section className="app-panel p-5">
             <label className="mb-1.5 block text-xs font-medium text-muted">Fiche de poste</label>
             <textarea
               className={areaClass}
@@ -236,31 +237,30 @@ export function CvPage() {
           <ProviderPicker withKeys />
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <section className="rounded-xl border border-line bg-surface">
             <div className="border-b border-line px-4 py-3 text-sm font-semibold">
-              Analyses ({analyses.length})
+              Historique des analyses ({analyses.length})
             </div>
             {analyses.length === 0 ? (
               <p className="px-4 py-6 text-center text-sm text-muted">
                 Aucune analyse pour l'instant.
               </p>
             ) : (
-              <ul className="max-h-56 divide-y divide-line overflow-y-auto">
+              <ul className="divide-y divide-line">
                 {analyses.map((a) => (
                   <li
                     key={a.id}
-                    onClick={() => setSelected(a.id)}
                     className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-subtle ${
                       selected === a.id ? 'bg-indigo-500/10' : ''
                     }`}
                   >
-                    <div className="min-w-0">
+                    <button type="button" onClick={() => setSelected(a.id)} className="min-w-0 flex-1 text-left">
                       <div className="truncate font-medium">{a.jobTitle}</div>
                       <div className="text-xs text-muted">
-                        {new Date(a.date).toLocaleDateString('fr-FR')} · {a.mode === 'api' ? 'Mistral' : 'manuel'}
+                        {new Date(a.date).toLocaleDateString('fr-FR')} · {a.mode === 'api' ? 'API · fournisseur historique non renseigné' : 'manuel'}
                       </div>
-                    </div>
+                    </button>
                     <div className="flex shrink-0 items-center gap-2">
                       {a.score !== null && (
                         <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${scoreColor(a.score)}`}>
@@ -274,7 +274,7 @@ export function CvPage() {
                         }}
                         className="text-muted hover:text-rose-700 dark:text-rose-400"
                       >
-                        <Trash2 size={13} />
+                        <Trash2 aria-label="Supprimer cette analyse" size={13} />
                       </button>
                     </div>
                   </li>
@@ -294,9 +294,7 @@ export function CvPage() {
                 )}
               </div>
               <AnalysisApplicationLink key={current.id} analysis={current} />
-              <div className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-secondary">
-                {current.result}
-              </div>
+              <p className="mb-4 text-xs text-muted">Note historique indicative ; elle ne constitue pas une décision.</p><AnalysisContent text={current.result} />
             </section>
           )}
         </div>

@@ -5,10 +5,8 @@ import { extractTextFromFile } from '../extract'
 import { DraftGuard } from '../components/DraftGuard'
 import { CvDocumentsPanel } from '../components/CvDocumentsPanel'
 import { OrphanDocuments } from '../components/OrphanDocuments'
-
 const inputClass =
   'app-field'
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5 text-xs font-medium text-muted">
@@ -17,14 +15,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   )
 }
-
 export function ProfilePage() {
   const confirmed = useSettings()
   const [draft, setDraft] = useState<Partial<typeof confirmed>>({})
   const settings = { ...confirmed, ...draft }
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const dirty = Object.keys(draft).length > 0
-
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = '' } }
     window.addEventListener('beforeunload', warn)
@@ -33,23 +30,22 @@ export function ProfilePage() {
   const [extracting, setExtracting] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [fileError, setFileError] = useState('')
-
   const set = (k: keyof typeof settings) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDraft((previous) => ({ ...previous, [k]: e.target.value }))
-
   async function saveProfile() {
     if (saving) return
     setSaving(true)
+    setSaved(false)
     setFileError('')
     const submitted = draft
     try {
       await saveSettings(submitted)
+      setSaved(true)
       setDraft((current) => Object.fromEntries(Object.entries(current).filter(([key, value]) => submitted[key as keyof typeof submitted] !== value)))
     }
     catch (error) { setFileError(error instanceof Error ? error.message : 'Enregistrement non confirmé.') }
     finally { setSaving(false) }
   }
-
   async function handleFile(file: File | undefined) {
     if (!file) return
     setExtracting(true)
@@ -64,7 +60,6 @@ export function ProfilePage() {
       setExtracting(false)
     }
   }
-
   function pickFile() {
     const input = document.createElement('input')
     input.type = 'file'
@@ -72,7 +67,6 @@ export function ProfilePage() {
     input.onchange = () => handleFile(input.files?.[0])
     input.click()
   }
-
   return (
     <div className="mx-auto max-w-3xl">
       <DraftGuard dirty={dirty} />
@@ -82,11 +76,11 @@ export function ProfilePage() {
       <p className="mb-8 text-sm text-muted">
         Ton identité et ton CV — la matière première des analyses et des lettres. Enregistre les modifications avant de quitter cette page.
       </p>
-
       <div className="flex flex-col gap-6">
         <CvDocumentsPanel />
         <OrphanDocuments />
-        <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer le profil et le CV'}</button>
+        <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer l’identité et le texte source'}</button>
+        {saved && !dirty && <p role="status" className="text-sm text-emerald-700">Identité et texte source enregistrés.</p>}
         {fileError && <p role="alert" className="text-sm text-rose-700 dark:text-rose-400">{fileError}</p>}
         <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
@@ -114,7 +108,6 @@ export function ProfilePage() {
             une vraie lettre.
           </p>
         </section>
-
         <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
             <FileUp size={15} className="text-muted" /> Mon CV

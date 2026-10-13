@@ -36,11 +36,12 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
     <section className="rounded-xl border border-line bg-surface p-4">
       <DraftGuard dirty={modelDraft !== null || keyInput.length > 0} />
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <KeyRound size={15} className="text-muted" /> Fournisseur IA
+        <KeyRound size={15} className="text-muted" /> Fournisseur et modèle IA — réglage global
       </div>
       {loadingError && <p role="alert" className="mb-3 text-xs text-rose-700 dark:text-rose-400">{loadingError} Les anciennes données sont conservées ; recharge après correction.</p>}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <select
+          aria-label="Fournisseur IA"
           className={inputClass}
           value={provider}
           disabled={busy}
@@ -67,6 +68,7 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
           </option>
         </select>
         <input
+          aria-label="Identifiant du modèle IA"
           className={inputClass}
           disabled={busy}
           value={modelDraft ?? settings.model}
@@ -74,6 +76,8 @@ export function ProviderPicker({ withKeys = false }: { withKeys?: boolean }) {
           placeholder="Modèle (ex: glm-4.5-flash)"
         />
       </div>
+      <p className="mt-2 text-xs text-muted">Modèle enregistré : <strong>{settings.model}</strong>. Ce réglage s’applique aux prochains appels. La disponibilité de cet identifiant n’est pas vérifiée.</p>
+      {modelDraft !== null && <p role="status" className="mt-2 text-sm text-amber-700">Modification du modèle non enregistrée.</p>}
       {modelDraft !== null && <button disabled={busy} className="mt-2 text-sm underline" onClick={async () => {
         setBusy(true)
         try { await saveSettings({ model: modelDraft }); setModelDraft(null); setError('') }
