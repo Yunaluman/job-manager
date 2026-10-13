@@ -41,6 +41,21 @@ async function fixture(t, fetchProvider) {
 }
 const events = (db) => monitoringSnapshot(db).events
 
+test('provider refusal exposes safe diagnostics, correlates the attempt and never retries', async (t) => {
+  let calls = 0
+  const trace = '12345678-1234-1234-1234-123456789abc'
+  const { db, call } = await fixture(t, async () => {
+    calls++
+    return Response.json({ code: 'tier_not_allowed', message: `${secret} ${body.prompt}` }, { status: 403, headers: { 'x-request-id': trace } })
+  })
+  const response = await call('ai', { method: 'POST', body })
+  assert.equal(response.status, 502); assert.equal(calls, 1)
+  assert.ok(response.data.error.includes('tier_not_allowed')); assert.ok(response.data.error.includes(trace))
+  assert.ok(response.data.error.includes(events(db)[0].id))
+  for (const privateValue of [secret, body.prompt]) assert.ok(!JSON.stringify(response).includes(privateValue))
+  assert.equal(events(db)[0].status, 'error')
+})
+
 test('durable attempt precedes dispatch; outcome excludes all private content and leaves revisions untouched', async (t) => {
   let calls = 0
   const { db, call, revision } = await fixture(t, async (db) => {
