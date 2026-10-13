@@ -1,3 +1,4 @@
+import { retrieveOffer } from './offer-fetch.mjs'
 import { prefillPrompt, validatePrefill } from '../src/cv-prefill.mjs'
 import { initializeOriginals, originalSnapshot, originalMetadata, registerOriginalRoutes } from './cv-originals.mjs'
 import express from 'express'
@@ -28,7 +29,7 @@ export function initializeDatabase(db) {
   initializeInterviews(db)
   initializeOriginals(db)
 }
-export function createApp({ db, protector, port, development = false, fetchProvider = fetch, backupDirectory }) {
+export function createApp({ db, protector, port, development = false, fetchProvider = fetch, offerRetriever = retrieveOffer, backupDirectory }) {
   assertDatabaseIntegrity(db)
   initializeDatabase(db)
   const credentials = createCredentialStore(db, protector)
@@ -75,6 +76,9 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   registerSubmissionRoutes(app, db, confirmWrite)
   registerInterviewRoutes(app, db, confirmWrite)
   registerOriginalRoutes(app, db, confirmWrite)
+  app.post('/api/offers/retrieve', async (req,res,next) => {
+    try { if (!req.body || Object.keys(req.body).some(key=>key !== 'url') || typeof req.body.url !== 'string') return res.status(400).json({error:'Lien invalide.'}); res.json(await offerRetriever(req.body.url)) } catch(error) { next(error) }
+  })
   app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
   let backupRunning = false
   app.post('/api/backups', async (_req, res, next) => {
