@@ -1,3 +1,4 @@
+import type { AiDiagnostic } from '../shared/domain/ai-diagnostics.mjs'
 import { dataStore } from './data'
 
 export const purposeNames = { 'offer-qualification': 'Qualification d’offre', 'cv-structuring': 'Structuration du CV', 'offer-extraction': 'Extraction d’offre', 'cv-analysis': 'Analyse du CV', 'letter-generation': 'Rédaction de lettre' }
@@ -11,6 +12,7 @@ export interface Tariff {
 }
 export interface AiConfig { monthlyLimitCents: number | null; tariffs: Tariff[] }
 export interface AiEvent {
+  diagnostic?: AiDiagnostic | null
   id: string; purpose: keyof typeof purposeNames; provider: string; requestedModel: string; returnedModel: string | null
   startedAt: string; endedAt: string | null; durationMs: number | null; status: keyof typeof statusNames; errorKind: string | null
   inputTokens: number | null; outputTokens: number | null; cachedInputTokens: number | null; usageState: string
