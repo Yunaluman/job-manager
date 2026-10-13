@@ -1,3 +1,4 @@
+import { isCsvReadOnly } from '../shared/contracts/types'
 // All mutations update the cache only after server confirmation.
 import type { Application, Status } from '../shared/contracts/types'
 import { STATUS_LABELS, applicationStatusLabel } from '../shared/contracts/types'
@@ -22,7 +23,7 @@ export async function recordApplicationEvent(id: string, kind: ApplicationEvent[
   return dataStore.mutate<Application>((state) => {
     const current = state.applications.find((app) => app.id === id)
     if (!current) throw new Error('Candidature introuvable.')
-    if (current.register) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
+    if (isCsvReadOnly(current)) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
     const events = applicationEvents(current)
     const old = eventId ? events.find((event) => event.id === eventId) : undefined
     if (eventId && !old) throw new Error('Étape introuvable. Synchronise les données.')
@@ -40,7 +41,7 @@ export async function removeApplicationEvent(id: string, eventId: string) {
   return dataStore.mutate<Application>((state) => {
     const current = state.applications.find((app) => app.id === id)
     if (!current) throw new Error('Candidature introuvable.')
-    if (current.register) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
+    if (isCsvReadOnly(current)) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
     const events = applicationEvents(current)
     const removed = events.find((event) => event.id === eventId)
     if (!removed) throw new Error('Étape introuvable. Synchronise les données.')
@@ -56,7 +57,7 @@ export async function updateApplication(id: string, patch: Partial<Application>)
   return dataStore.mutate<Application>((state) => {
     const current = state.applications.find((app) => app.id === id)
     if (!current) throw new Error('Candidature introuvable. Synchronise les données.')
-    if (current.register) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
+    if (isCsvReadOnly(current)) throw new Error('Dossier CSV en lecture seule. Modifie le registre puis réimporte son aperçu.')
     const now = new Date().toISOString()
     const next = { ...current, ...patch, id: current.id, createdAt: current.createdAt, updatedAt: now }
     if (patch.status && patch.status !== current.status) {

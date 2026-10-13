@@ -86,6 +86,7 @@ export function previewRegister(csv, applications, sourceName = 'candidatures.cs
     if (ids.get(raw.id) > 1) errors.push('Identifiant dupliqué dans le fichier.')
     const external = applications.filter((app) => (app.register?.externalId ?? app.externalId ?? app.id) === raw.id)
     if (external.length > 1) errors.push('Plusieurs dossiers locaux portent cet identifiant externe.')
+    if (external.some(app=>app.registerAdoptedAt)) errors.push('Dossier adopté dans JobPilot : import refusé pour préserver les corrections locales.')
     const candidates = applications.filter((app) => external.includes(app) || identity(app) === identity(fields) || (fields.url && app.url === fields.url))
       .map((app) => ({ id: app.id, company: app.company, title: app.title, location: app.location ?? '',
         externalId: app.register?.externalId ?? app.externalId, immutable: Boolean(app.register),
@@ -131,6 +132,7 @@ export function reconcileRegister(preview, applications, resolutions, now = new 
     const existing = resolution.targetId === null ? undefined : applications.find((app) => app.id === resolution.targetId)
     if (resolution.targetId !== null && !existing) fail('Dossier de rapprochement introuvable.')
     if (existing && !row.candidates.some((candidate) => candidate.id === existing.id)) fail('Le dossier choisi ne correspond à aucun rapprochement proposé.')
+    if (existing?.registerAdoptedAt) fail('Dossier adopté : remplacement CSV interdit.')
     if (existing?.register && existing.register.externalId !== row.externalId) fail('Un autre identifiant du registre contrôle déjà ce dossier.')
     if (row.defaultTarget && resolution.targetId !== row.defaultTarget) fail('Cet identifiant externe existe déjà : actualise son dossier.')
     if (!existing && (row.candidates.length || row.duplicateIdentity) && resolution.allowDuplicate !== true) fail('Confirme explicitement que le nouveau dossier est distinct du doublon possible.')
@@ -153,7 +155,12 @@ export function validateRegisterProjection(application) {
   const register = application.register
   if (!register || typeof register !== 'object' || Array.isArray(register) || Object.keys(register).some((key) => !['format', 'externalId', 'sourceName', 'fileSha256', 'rowSha256', 'importedAt', 'disposition', 'raw', 'retainedEvents'].includes(key)) || register.format !== REGISTER_FORMAT || typeof register.sourceName !== 'string' || !register.sourceName.trim() || register.sourceName.length > 200 || /[\x00-\x1f]/.test(register.sourceName) || typeof register.importedAt !== 'string' || !Number.isFinite(Date.parse(register.importedAt)) || !/^[a-f0-9]{64}$/.test(register.fileSha256) || !/^[a-f0-9]{64}$/.test(register.rowSha256) || !register.raw || Array.isArray(register.raw) || required.some((key) => typeof register.raw[key] !== 'string') || Object.keys(register.raw).length > 100 || Object.entries(register.raw).some(([key, value]) => !/^[a-z][a-z0-9_]{0,79}$/.test(key) || ['constructor', 'prototype', '__proto__'].includes(key) || typeof value !== 'string' || value.length > 100000) || register.externalId !== register.raw.id || register.rowSha256 !== sha(JSON.stringify(register.raw))) fail('Provenance du registre invalide.')
   const retained = register.retainedEvents ?? []
-  if (!Array.isArray(retained) || retained.length > 1000 || retained.some((event) => !event || typeof event !== 'object' || Object.keys(event).some((key) => !['id', 'kind', 'occurredAt', 'source'].includes(key)) || typeof event.id !== 'string' || !event.id || event.id.length > 200 || !['sent', 'response', 'interview', 'offer', 'refusal'].includes(event.kind) || !['manual', 'legacy-date'].includes(event.source) || !validEventDate(event.occurredAt)) || new Set(retained.map((event) => event.id)).size !== retained.length) fail('Archive locale datée invalide.')
+  if (!Array.isArray(retained) || retained.length > 1000 || retained.some((event) => !event || typeof event !== 'object' || Object.keys(event).some((key) => !['id', 'kind', 'occurredAt', 'source'].includes(key)) || typeof event.id !== 'string' || !event.id || event.id.length > 200 || !['sent', 'response', 'interview', 'offer', 'refusal', 'followup'].includes(event.kind) || !['manual', 'legacy-date'].includes(event.source) || !validEventDate(event.occurredAt)) || new Set(retained.map((event) => event.id)).size !== retained.length) fail('Archive locale datée invalide.')
   const { errors, disposition, ...fields } = mapped(register.raw)
+  if (application.registerAdoptedAt) {
+    const sourceEvents = projectionEvents(register.raw, retained).filter(event=>event.source==='register-date')
+    if (errors.length || register.disposition !== disposition || application.externalId !== register.externalId || sourceEvents.some(event=>!application.events?.some(item=>JSON.stringify(item)===JSON.stringify(event))) || application.events?.some(event=>event.source==='register-date'&&!sourceEvents.some(item=>JSON.stringify(item)===JSON.stringify(event)))) fail('Archive native invalide.')
+    return
+  }
   if (errors.length || register.disposition !== disposition || application.externalId !== register.externalId || Object.entries(fields).some(([key, value]) => application[key] !== value) || application.eventHistoryComplete !== false || JSON.stringify(application.events) !== JSON.stringify(projectionEvents(register.raw, retained))) fail('La projection du registre ne correspond pas à sa source.')
 }

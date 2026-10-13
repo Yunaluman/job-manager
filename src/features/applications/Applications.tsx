@@ -1,3 +1,4 @@
+import { isCsvReadOnly } from '../../../shared/contracts/types'
 import { Button } from '../../shared/ui/Button'
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
@@ -337,7 +338,7 @@ function TableView({
                 <div className="flex justify-end gap-1">
                   <Button type="submit"
                     aria-label={`Modifier ${a.company}`}
-                    disabled={Boolean(a.register)}
+                    disabled={isCsvReadOnly(a)}
                     onClick={(e) => {
                       e.stopPropagation()
                       onEdit(a)
@@ -414,15 +415,15 @@ function KanbanView({
                 <div
                   key={a.id}
                   draggable={!a.register}
-                  onDragStart={() => { if (!a.register) setDragId(a.id) }}
+                  onDragStart={() => { if (!isCsvReadOnly(a)) setDragId(a.id) }}
                   onClick={() => a.register ? void navigate({ to: '/candidatures/$id', params: { id: a.id } }) : onEdit(a)}
                   role="button" tabIndex={0} aria-label={`${a.company} — ${a.title}`}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (a.register) void navigate({ to: '/candidatures/$id', params: { id: a.id } }); else onEdit(a) } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (isCsvReadOnly(a)) void navigate({ to: '/candidatures/$id', params: { id: a.id } }); else onEdit(a) } }}
                   className={`${a.register ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} rounded-lg border border-line bg-subtle p-2.5 text-sm shadow hover:border-slate-600`}
                 >
                   <div className="font-medium leading-tight">{a.company}</div>
                   <div className="mt-0.5 text-xs leading-tight text-muted">{a.title}</div>
-                  {a.register && <div className="mt-2"><StatusBadge status={a.status} application={a} /><span className="ml-2 text-xs text-muted">CSV · lecture seule</span></div>}
+                  {a.register && <div className="mt-2"><StatusBadge status={a.status} application={a} /><span className="ml-2 text-xs text-muted">{a.registerAdoptedAt ? 'Provenance CSV · suivi JobPilot' : 'CSV · lecture seule'}</span></div>}
                   {isDue(a) && (
                     <div className="mt-1.5 flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400">
                       <AlarmClock size={11} /> Relance due

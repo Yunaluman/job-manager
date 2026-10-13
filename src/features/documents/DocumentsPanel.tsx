@@ -1,8 +1,9 @@
+import { resolvePreparationCv } from "../../../shared/domain/preparation-source.mjs";
 import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "../../shared/ui/Button";
 import { Field } from "../../shared/ui/Field";
-import { useData } from "../../data";
+import { dataStore, useData } from "../../data";
 import { hasApiKey, callApi, providerId } from "../../cv";
 import type { Application } from "../../../shared/contracts/types";
 import type {
@@ -72,14 +73,11 @@ export function DocumentsPanel({ application }: { application: Application }) {
       : sources.originalId
         ? `original:${sources.originalId}`
         : "profile";
-  const defaultOriginal = cvOriginals
-    .filter((item) => item.format === "pdf")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-  const defaultKey = versions[0]
-    ? sourceKey(versions[0].sources)
-    : defaultOriginal
-      ? `original:${defaultOriginal.id}`
-      : "profile";
+  const selectedCv = resolvePreparationCv(application, journey, cvOriginals);
+  const defaultKey =
+    selectedCv.kind === "profile"
+      ? "profile"
+      : `${selectedCv.kind === "original" ? "original" : "version"}:${selectedCv.id}`;
   const selectedKey = edit
     ? sourceKey(edit.input.sources)
     : (choice ?? defaultKey);
@@ -274,9 +272,38 @@ export function DocumentsPanel({ application }: { application: Application }) {
             value={selectedKey}
             disabled={generating || !!proposal}
             onChange={(event) => {
-              setChoice(event.target.value);
-              setShowOriginal(false);
-              if (edit) patch({ sources: sources(event.target.value) });
+              const key = event.target.value;
+              setSaving(true);
+              setError("");
+              void dataStore
+                .mutate<Application>(() => ({
+                  method: "PUT",
+                  path: `applications/${encodeURIComponent(application.id)}/preparation`,
+                  body: {
+                    cv:
+                      key === "profile"
+                        ? null
+                        : {
+                            kind: key.startsWith("original:")
+                              ? "original"
+                              : "version",
+                            id: key.slice(key.indexOf(":") + 1),
+                          },
+                  },
+                  apply: (state, saved) => ({
+                    ...state,
+                    applications: state.applications.map((item) =>
+                      item.id === saved.id ? saved : item,
+                    ),
+                  }),
+                }))
+                .then(() => {
+                  setChoice(key);
+                  setShowOriginal(false);
+                  if (edit) patch({ sources: sources(key) });
+                })
+                .catch((reason) => setError(reason.message))
+                .finally(() => setSaving(false));
             }}
           >
             <optgroup label="Originaux importés">
@@ -299,8 +326,8 @@ export function DocumentsPanel({ application }: { application: Application }) {
           </select>
         </label>
         <p className="mt-2 text-xs text-muted">
-          La source est conservée avec la version de la lettre. Changer de CV
-          ne réécrit pas ta lettre.
+          La source est conservée avec la version de la lettre. Changer de CV ne
+          réécrit pas ta lettre.
         </p>
         {original ? (
           <>
@@ -313,9 +340,7 @@ export function DocumentsPanel({ application }: { application: Application }) {
                 className="app-button"
                 onClick={() => setShowOriginal(!showOriginal)}
               >
-                {showOriginal
-                  ? "Masquer l’original"
-                  : "Aperçu du CV original"}
+                {showOriginal ? "Masquer l’original" : "Aperçu du CV original"}
               </Button>
               <Button
                 className="app-primary"
@@ -334,13 +359,13 @@ export function DocumentsPanel({ application }: { application: Application }) {
           </>
         ) : selectedKey === "profile" ? (
           <p className="mt-3 text-sm text-amber-700">
-            Aucun fichier sélectionné. Le texte du profil sert à la
-            génération, mais ne constitue pas un CV à joindre.
+            Aucun fichier sélectionné. Le texte du profil sert à la génération,
+            mais ne constitue pas un CV à joindre.
           </p>
         ) : (
           <p className="mt-3 text-sm text-muted">
-            Version structurée sélectionnée. Son export est disponible
-            dans « Adapter mon CV ».
+            Version structurée sélectionnée. Son export est disponible dans «
+            Adapter mon CV ».
           </p>
         )}
       </section>
@@ -425,8 +450,8 @@ export function DocumentsPanel({ application }: { application: Application }) {
                 ))}
               </div>
               <p className="text-xs text-muted">
-                Les exports du brouillon ne l’enregistrent pas et ne
-                déclarent aucun envoi.
+                Les exports du brouillon ne l’enregistrent pas et ne déclarent
+                aucun envoi.
               </p>
               <details>
                 <summary className="cursor-pointer font-medium">
@@ -507,8 +532,8 @@ export function DocumentsPanel({ application }: { application: Application }) {
                 <div className="rounded-xl border border-line p-4">
                   <p className="mb-2 text-xs text-muted">
                     {providerId(settings) === "mistral" ? "Mistral" : "Z.ai"} ·{" "}
-                    {settings.model}. Envoie le texte du CV sélectionné et
-                    de l’annonce au fournisseur.
+                    {settings.model}. Envoie le texte du CV sélectionné et de
+                    l’annonce au fournisseur.
                   </p>
                   <Button
                     className="app-button"

@@ -1,3 +1,4 @@
+import { isCsvReadOnly } from '../../../shared/contracts/types'
 import { Button } from "../../shared/ui/Button";
 import { QualificationResult } from "../offers/OfferQualification";
 import { useState } from "react";
@@ -89,7 +90,7 @@ export function ApplicationDetail() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={app.status} application={app} />
-          {!app.register && (
+          {!isCsvReadOnly(app) && (
             <>
               <Button
                 type="button"
@@ -98,20 +99,20 @@ export function ApplicationDetail() {
               >
                 Modifier le dossier
               </Button>
-              <Button
+              {!app.register && (<Button
                 type="button"
                 className="app-button"
                 onClick={() => void remove()}
               >
                 Supprimer le dossier
-              </Button>
+              </Button>)}
             </>
           )}
         </div>
       </div>
       {app.register && (
         <section className="app-panel mb-5 p-4 text-sm">
-          <h2 className="font-semibold">Copie CSV en lecture seule</h2>
+          <h2 className="font-semibold">{app.registerAdoptedAt ? 'Suivi JobPilot · provenance CSV conservée' : 'Copie CSV en lecture seule'}</h2>
           <p className="mt-1 text-muted">
             {app.register.sourceName} · importée le{" "}
             {new Date(app.register.importedAt).toLocaleString("fr-FR")}. Les
@@ -277,7 +278,7 @@ export function ApplicationDetail() {
           {app.notes && (
             <p className="mt-4 whitespace-pre-wrap text-sm">{app.notes}</p>
           )}
-          {!app.register && (
+          {!isCsvReadOnly(app) && (
             <label className="mt-4 block text-sm">
               Statut courant — ne prouve aucune étape
               <select

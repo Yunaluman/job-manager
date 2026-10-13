@@ -35,11 +35,16 @@ test('declared sends validate dossier/version/date, replay once, preserve CSV an
 test('historical missing documents stay explicit, wrong-dossier versions refuse, failed writes roll back',async t=>{
   const {call,db,revision}=await journeyFixture(t);await call('/api/offers/offer-fixture','PUT',syntheticOffer);const application=(await call('/api/offers/offer-fixture/decision','POST',{decision:'go',reason:''})).body.result.application
   const general=(await call('/api/documents/reference/versions','POST',cv)).body.result.version
-  assert.equal((await call('/api/submissions','POST',{id:'wrong',applicationId:application.id,occurredAt:'2026-01-05',cvVersionId:general.id,note:''})).status,400)
+  assert.equal((await call('/api/submissions/confirm','POST',{id:'reference',applicationId:application.id,occurredAt:'2026-01-05',cvVersionId:general.id,note:''})).status,200)
   const historical=(await call('/api/submissions','POST',{id:'historical',applicationId:application.id,occurredAt:'2026-01-05',note:'Documents inconnus'})).body.result;assert.equal(historical.cvVersionId,undefined);assert.equal(historical.letterVersionId,undefined)
-  assert.throws(()=>validateSubmissionLinks({...journeySnapshot(db),submissions:[{...historical,cvVersionId:general.id}]}),/incohérent/)
+  assert.doesNotThrow(()=>validateSubmissionLinks({...journeySnapshot(db),submissions:[{...historical,cvVersionId:general.id}]}))
+  await call('/api/offers/another-offer','PUT',{...syntheticOffer,id:'another-offer'})
+  const another=(await call('/api/offers/another-offer/decision','POST',{decision:'go',reason:''})).body.result.application
+  const other=(await call('/api/documents/other/versions','POST',{...cv,applicationId:another.id})).body.result.version
+  assert.ok(other)
+  assert.equal((await call('/api/submissions','POST',{id:'wrong',applicationId:application.id,occurredAt:'2026-01-05',cvVersionId:other.id,note:''})).status,400)
   const before=revision();db.exec("CREATE TRIGGER refuse_submission BEFORE INSERT ON submissions BEGIN SELECT RAISE(ABORT,'fixture failure'); END")
-  assert.equal((await call('/api/submissions','POST',{id:'failure',applicationId:application.id,occurredAt:'2026-01-06',note:''})).status,500);assert.equal(revision(),before);assert.equal(journeySnapshot(db).submissions.length,1)
+  assert.equal((await call('/api/submissions','POST',{id:'failure',applicationId:application.id,occurredAt:'2026-01-06',note:''})).status,500);assert.equal(revision(),before);assert.equal(journeySnapshot(db).submissions.length,2)
   assert.deepEqual(JSON.parse(db.prepare('SELECT data FROM applications WHERE id=?').get(application.id).data).events,[])
 })
 test('next step distinguishes preparation from sends and avoids duplicated dated legacy evidence',()=>{

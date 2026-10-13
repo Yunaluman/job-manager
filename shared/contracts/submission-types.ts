@@ -1,1 +1,1 @@
-export interface Submission { id:string; applicationId:string; occurredAt:string; createdAt:string; cvVersionId?:string; letterVersionId?:string; note:string; source:'manual'; cancelledAt?:string }
+export interface Submission { id:string; applicationId:string; occurredAt:string; createdAt:string; cvVersionId?:string; cvOriginalId?:string; channel?:'form'|'email'|'other'|'unknown'; letterOmitted?:boolean; letterVersionId?:string; note:string; source:'manual'; cancelledAt?:string }
