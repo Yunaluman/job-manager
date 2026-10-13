@@ -1,3 +1,4 @@
+import { validatePrefill, PREFILL_FIELDS } from '../src/cv-prefill.mjs'
 import { createHash } from 'node:crypto'
 const fail = message => { throw Object.assign(new Error(message), { status: 400 }) }
 export const MAX_CV_BYTES = 5 * 1024 * 1024
@@ -14,7 +15,15 @@ export function validateOriginal(value) {
 export function validateOriginals(values, journey) {
   if (!Array.isArray(values) || values.length > 1000 || new Set(values.map(value => value.id)).size !== values.length) fail('Bibliothèque CV invalide.')
   values.forEach(validateOriginal)
-  for (const version of journey.documentVersions) if (version.sources.originalId && !values.some(value => value.id === version.sources.originalId)) fail('Fichier source du CV absent.')
+  for (const version of journey.documentVersions) {
+    const original = values.find(value => value.id === version.sources.originalId)
+    if (version.sources.originalId && !original) fail('Fichier source du CV absent.')
+    const trace = version.sources.prefill
+    if (trace) {
+      if (!original || version.sources.cvText !== original.text || trace.originalId !== original.id || !['local','api'].includes(trace.mode) || typeof trace.model !== 'string' || trace.model.length > 120 || (trace.mode === 'api' && !trace.model.trim()) || !Array.isArray(trace.appliedFields) || !trace.appliedFields.length || new Set(trace.appliedFields).size !== trace.appliedFields.length || trace.appliedFields.some(field => !PREFILL_FIELDS.includes(field) || !trace.proposals?.some(item => item.field === field)) || Object.keys(trace).some(key => !['originalId','mode','model','proposals','appliedFields'].includes(key))) fail('Provenance de préremplissage invalide.')
+      try { validatePrefill(trace.proposals, original.text) } catch { fail('Provenance de préremplissage non documentée.') }
+    }
+  }
 }
 export function restoreOriginals(db, values) { initializeOriginals(db); const insert = db.prepare('INSERT INTO cv_originals VALUES (?,?)'); values.forEach(value => insert.run(value.id, JSON.stringify(value))) }
 async function extract(bytes, format) {

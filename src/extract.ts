@@ -16,9 +16,8 @@ async function extractPdf(buffer: ArrayBuffer): Promise<string> {
     const content = await page.getTextContent()
     pages.push(
       content.items
-        .map((item) => ('str' in item ? item.str : ''))
-        .join(' ')
-        .replace(/\s+/g, ' '),
+        .map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : ''))
+        .join(''),
     )
   }
   return pages.join('\n\n').trim()
