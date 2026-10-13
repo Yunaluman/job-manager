@@ -14,4 +14,10 @@ Portable snapshots default to v5. Versions 1-4 restore with an empty interview c
 
 `tests/interviews.test.mjs` uses synthetic in-memory/temporary databases and a provider that refuses all calls. It checks provenance/calendar validation, immutable dossier links, lifecycle history, stale revisions, receipt replay, atomic rollback, unique preparation ownership, orphan handling and portable/encrypted restoration. Existing future milestones remain untouched.
 
-The management interface and reminders are delivered in subsequent dependent PRs. Each part requires review and correction before the next part; no automatic merge.
+## Management interface
+
+The dossier summary and Actions page expose planned interviews, declared sources, immutable change history, closed/cancelled follow-ups and orphan links. Dates are day-only. A past date remains an unknown outcome, not a missed or completed interview. Refused/inactive dossiers are flagged without cancelling plans. Similar same-day plans are warned about but never merged.
+
+Forms preserve drafts on failure or conflict. After synchronization, concurrent changes are displayed alongside the draft for explicit comparison; nothing is automatically retried or merged. Preparation reuses existing actions and keeps the date captured at attachment visible after a report.
+
+Reminders follow in the final dependent PR. Each part requires review and correction before the next part; no automatic merge.
