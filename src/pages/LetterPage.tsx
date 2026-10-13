@@ -89,7 +89,7 @@ export function LetterPage() {
       <DraftGuard dirty={pasteText.length > 0} />
       {linked && <p className="mb-3 text-sm text-muted">Lettre liée à {linked.company} — {linked.title}. Elle sera visible dans ce dossier.</p>}
       {appId && !linked && <p role="alert" className="mb-3 text-sm text-rose-700 dark:text-rose-300">Le dossier lié est introuvable. Retourne aux candidatures avant de rédiger une lettre.</p>}
-      <h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+      <p className="app-eyebrow">Documents · Lettres</p><h1 className="mb-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
         <Mail size={22} className="text-indigo-700 dark:text-indigo-400" /> Lettre de motivation
       </h1>
       <p className="mb-8 text-sm text-muted">
@@ -149,7 +149,7 @@ export function LetterPage() {
               <button
                 onClick={generate}
                 disabled={!ready || loading}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 disabled:opacity-50"
+                className="app-primary"
               >
                 {loading ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
                 {loading ? 'Rédaction…' : `Générer (${settings.model})`}
@@ -252,7 +252,7 @@ export function LetterPage() {
                     } catch (e) { setError(e instanceof Error ? e.message : 'Enregistrement non confirmé.') }
                   }
                 }}
-                className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700"
+                className="app-primary"
               >
                 Enregistrer
               </button>
