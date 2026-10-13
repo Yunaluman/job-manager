@@ -23,7 +23,7 @@ export function exportSnapshot(db, settings, version = 6) {
     if (version < 5 && (interviewPlans.length || planning.actions.some(action => action.interviewPlan) || planning.notificationReads.some(read => read.id.startsWith('["interview",')))) throw new Error('Use portable v5 to preserve interview planning.')
     if (version < 3 && (planning.actions.length || planning.notificationReads.length)) throw new Error('Use portable v3 to preserve actions and notification read states.')
     const originals = db.prepare("SELECT name FROM sqlite_master WHERE name = 'cv_originals'").get() ? originalSnapshot(db) : []
-    if (version < 6 && (originals.length || journey.documentVersions.some(version => version.sources.originalId))) throw new Error('Use portable v6 to preserve original CV files.')
+    if (version < 6 && (originals.length || journey.offers.some(offer=>offer.acquisition) || journey.documentVersions.some(version => version.sources.originalId))) throw new Error('Use portable v6 to preserve original CV files.')
     const payload = {
       revision: db.prepare('SELECT revision FROM persistence_revision WHERE singleton = 1').get().revision,
       applications: db.prepare('SELECT data FROM applications ORDER BY id').all().map((row) => JSON.parse(row.data)),
