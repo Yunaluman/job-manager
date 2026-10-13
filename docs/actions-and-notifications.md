@@ -16,9 +16,11 @@ Portable snapshots default to v5, retaining actions, read confirmations, the app
 
 `tests/actions.test.mjs` covers calendar/DST/week boundaries, priority ordering, alert escalation and ownership, invalid inputs, orphan links, two clients at the same revision, receipt replay, write rollback, immutable CSV copies, lifecycle history, legacy initialization/restores, portable v3 and encrypted backup restoration. Tests inject a provider that refuses all calls and use memory/temporary databases and synthetic CSV only.
 
-## Subsequent lots
+## Roadmap status
 
-1. Targeting and offer qualification: explicit search criteria, constraints, priorities and exclusion reasons; manual offer collection first.
+1. Targeting and offer qualification: implemented with explicit search criteria, constraints, priorities and exclusion reasons; manual offer collection. See [the candidature journey](candidature-journey.md).
 2. Strategy review: implemented as a read-only factual comparison of periods, existing job titles and sources, with sample sizes, delays and missing data visible. See [strategy review](strategy-review.md). Counts alone do not justify where to invest time.
 
-Employer-response, interview and offer-expiry notifications require explicit, sufficiently precise source data. A status must never fabricate an event. Each future lot requires its own reviewed/fixed PR.
+Planned interview management and day-based reminders are implemented as independent local follow-ups with declared sources; see [planned interviews](interview-plans.md). Historical events and preparation actions never imply that an appointment happened.
+
+Employer-response and offer-expiry notifications remain future possibilities requiring explicit, sufficiently precise source data. No next lot is ordered by this document. A status must never fabricate an event. Each future lot requires its own reviewed/fixed PR.

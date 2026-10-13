@@ -1,4 +1,5 @@
 import { validEventDate } from './application-events.mjs'
+import { interviewNotificationId } from './interviews-core.mjs'
 
 export const ACTION_KINDS = ['prospect', 'prepare-application', 'follow-up', 'prepare-interview', 'decide', 'other']
 export const ACTION_PRIORITIES = ['low', 'normal', 'high']
@@ -65,16 +66,18 @@ export function sourceDeadlines(applications, actions) {
     return { application: app, dueDate: app.nextActionAt, managedActionId: managed?.id }
   })
 }
-export function dossiersToDecide(applications, actions) {
-  return applications.filter((app) => isOpenDossier(app) && !validEventDate(app.nextActionAt) && !actions.some((action) => action.status === 'todo' && action.applicationId === app.id))
+export function dossiersToDecide(applications, actions, interviewPlans = []) {
+  return applications.filter((app) => isOpenDossier(app) && !validEventDate(app.nextActionAt) && !actions.some((action) => action.status === 'todo' && action.applicationId === app.id) && !interviewPlans.some(plan => plan.applicationId === app.id && plan.status === 'planned'))
 }
-export function actionNotifications(actions, applications, reads = [], day = parisDay()) {
+export function actionNotifications(actions, applications, reads = [], day = parisDay(), interviewPlans = []) {
   const stages = { tomorrow: 0, today: 1, overdue: 2 }
   const candidates = [
     ...actions.filter((action) => action.status === 'todo' && action.dueDate).map((action) => ({ id: JSON.stringify(['action', action.id]), actionId: action.id,
       applicationId: action.applicationId, title: action.title, dueDate: action.dueDate, origin: 'action', priority: action.priority })),
     ...sourceDeadlines(applications, actions).filter((source) => !source.managedActionId).map(({ application: app, dueDate }) => ({ id: JSON.stringify(['source', app.id]),
       applicationId: app.id, title: `Relance : ${app.company} — ${app.title}`, dueDate, origin: 'source', priority: 'normal' })),
+    ...interviewPlans.filter(plan => plan.status === 'planned').map(plan => ({ id: interviewNotificationId(plan.id), interviewPlanId: plan.id,
+      applicationId: plan.applicationId, title: `Entretien annoncé : ${plan.title}`, dueDate: plan.scheduledDate, origin: 'interview', priority: 'normal' })),
   ]
   return candidates.filter((item) => item.dueDate <= shiftDay(day, 1)).map((item) => {
     const stage = item.dueDate < day ? 'overdue' : item.dueDate === day ? 'today' : 'tomorrow'

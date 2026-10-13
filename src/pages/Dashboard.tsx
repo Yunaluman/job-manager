@@ -4,7 +4,7 @@ import { useApplications } from '../storage'
 import { funnelMetrics, applicationEvents } from '../application-events.mjs'
 import { PlanningSummary } from '../components/PlanningSummary'
 import { JourneySummary } from '../components/JourneySummary'
-import { useData } from '../data'
+import { useData, usePersistenceStatus } from '../data'
 import { withDeclaredSends } from '../journey-progress.mjs'
 import { Link } from '@tanstack/react-router'
 
@@ -101,6 +101,8 @@ export function Dashboard() {
   const submissions = useData().journey.submissions
   const apps = useApplications().map(app=>withDeclaredSends(app,submissions))
   const metrics = funnelMetrics(apps)
+  const persistence = usePersistenceStatus()
+  const confirmed = persistence.ready && !persistence.blocked && persistence.pending === 0
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -110,7 +112,7 @@ export function Dashboard() {
       <PlanningSummary />
       <JourneySummary />
 
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {confirmed ? <><div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard icon={<Send size={18} />} label="Envois datés" value={metrics.sent} accent="bg-sky-500/15 text-sky-700 dark:text-sky-300" />
         <StatCard icon={<MessageSquare size={18} />} label="Entretiens datés" value={metrics.interviews} accent="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
         <StatCard icon={<Trophy size={18} />} label="Offres datées" value={metrics.offers} accent="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" />
@@ -120,6 +122,7 @@ export function Dashboard() {
 
       {metrics.unknownHistory > 0 && <p className="mt-4 text-sm text-muted">Historique incomplet pour {metrics.unknownHistory} dossier(s). Les étapes non documentées ne sont pas comptées. Les taux concernent uniquement les dossiers ayant un envoi daté.</p>}
       <SourceStats apps={apps} />
+      </> : <p role="status" className="my-4 text-sm text-muted">{persistence.blocked ? 'Statistiques indisponibles : synchronise les données.' : 'Chargement ou confirmation en cours…'}</p>}
     </div>
   )
 }

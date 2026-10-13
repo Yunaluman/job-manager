@@ -6,6 +6,9 @@ export const KIND_LABELS: Record<ActionInput['kind'], string> = { prospect: 'Pro
 export const PRIORITY_LABELS = { low: 'Basse', normal: 'Normale', high: 'Haute' }
 export const STATUS_LABELS = { todo: 'À faire', done: 'Terminée', cancelled: 'Annulée' }
 export const STAGE_LABELS = { tomorrow: 'Demain', today: 'À traiter aujourd’hui', overdue: 'En retard' }
+export function notificationStageLabel(item: ActionNotification) {
+  return item.origin === 'interview' ? { tomorrow: 'Entretien annoncé demain', today: 'Entretien annoncé aujourd’hui', overdue: 'Date passée — réalisation non renseignée dans ce suivi' }[item.stage] : STAGE_LABELS[item.stage]
+}
 export function saveAction(input: ActionInput) {
   return dataStore.mutate<Action>(() => ({ method: 'PUT', path: `actions/${encodeURIComponent(input.id)}`, body: input,
     apply: (state, saved) => {
