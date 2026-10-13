@@ -49,7 +49,7 @@ SQLite secure-delete is enabled for future changes. Migration does not guarantee
 
 ## Backups
 
-Portable v6 JSON snapshots include applications, analyses, CV/profile, public provider settings, AI monitoring, actions, notification read states, the application journey and planned interviews, without saved credentials. Older versions restore collections absent from their format as empty; old-format exports refuse to omit existing data. Excel exports contain applications only. Legacy JSON-array import replaces applications after confirmation and a verified encrypted backup. Full snapshots restore into a new database with the supplied CLI; see [the persistence and restoration guide](docs/persistence-lot-2.md) and [planned interviews](docs/interview-plans.md).
+Portable v7 JSON snapshots include applications, analyses, CV/profile, public provider settings, AI monitoring and validated diagnostics, actions, notification read states, the application journey and planned interviews, without saved credentials. Older versions restore collections absent from their format as empty; old-format exports refuse to omit existing data. Excel exports contain applications only. Legacy JSON-array import replaces applications after confirmation and a verified encrypted backup. Full snapshots restore into a new database with the supplied CLI; see [the persistence and restoration guide](docs/persistence-lot-2.md) and [planned interviews](docs/interview-plans.md).
 
 Use “Sauvegarder la base chiffrée” in Settings for a verified online SQLite backup, encrypted with Windows DPAPI and including protected credentials. Copy verified encrypted backups to a separate protected location for disk-loss recovery. Raw copying during use can omit WAL changes. Do not commit databases or backups to Git.
 
@@ -66,3 +66,5 @@ Use “Sauvegarder la base chiffrée” in Settings for a verified online SQLite
 Future changes must use typed branches such as `fix/local-credentials-and-access`, one PR per lot, and review/fix before the next lot. Do not deploy this local application as a public service by changing its bind address.
 
 References: [Microsoft DPAPI](https://learn.microsoft.com/en-us/dotnet/standard/security/how-to-use-data-protection), [Vite server security options](https://vite.dev/config/server-options).
+
+See [runtime and AI diagnostics](docs/runtime-and-ai-diagnostics.md) for startup, shutdown, provider failures and portable compatibility.

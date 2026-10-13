@@ -85,7 +85,7 @@ test('portable v5 and encrypted backups preserve plans; v1-v4 restore empty plan
   await call('/api/interview-plans/interview', 'PUT', input())
   await call('/api/actions/preparation', 'PUT', preparation())
   for (const version of [1, 2, 3, 4]) assert.throws(() => exportSnapshot(db, {}, version), /v5/)
-  const snapshot = exportSnapshot(db, {}); assert.equal(snapshot.version, 6)
+  const snapshot = exportSnapshot(db, {}); assert.equal(snapshot.version, 7)
   const path = join(directory, 'v5.db'); restoreSnapshot(snapshot, path)
   const restored = new Database(path)
   try { assert.deepEqual(exportSnapshot(restored, {}).payload, snapshot.payload) } finally { restored.close() }

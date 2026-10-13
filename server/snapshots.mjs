@@ -14,10 +14,10 @@ import { validateInterviewPlans } from '../shared/domain/interviews-core.mjs'
 const hasV6JourneyData = journey => journey.offers.some(value=>value.acquisition !== undefined) || journey.qualifications.some(value=>value.summary !== undefined || value.proposals !== undefined || value.proposalModel !== undefined || value.entries.some(entry=>entry.provenance !== 'manual' || entry.cvEvidence !== undefined || entry.offerEvidence !== undefined)) || journey.documentVersions.some(version=>version.sources.originalId !== undefined || version.sources.prefill !== undefined)
 const hasV6Monitoring = monitoring => monitoring.events.some(event=>['cv-structuring','offer-qualification'].includes(event.purpose))
 const checksum = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
-export function exportSnapshot(db, settings, version = 6) {
+export function exportSnapshot(db, settings, version = 7) {
   assertDatabaseIntegrity(db)
   return db.transaction(() => {
-    if (![1, 2, 3, 4, 5, 6].includes(version)) throw new Error('Unsupported snapshot version.')
+    if (![1, 2, 3, 4, 5, 6, 7].includes(version)) throw new Error('Unsupported snapshot version.')
     const journey = db.prepare("SELECT name FROM sqlite_master WHERE name = 'offers'").get() ? journeySnapshot(db) : emptyJourney()
     if (version < 4 && Object.values(journey).some((rows) => rows.length)) throw new Error('Use portable v4 to preserve the application journey.')
     const planning = db.prepare("SELECT name FROM sqlite_master WHERE name = 'actions'").get() ? planningSnapshot(db) : { actions: [], notificationReads: [] }
@@ -27,6 +27,7 @@ export function exportSnapshot(db, settings, version = 6) {
     const originals = db.prepare("SELECT name FROM sqlite_master WHERE name = 'cv_originals'").get() ? originalSnapshot(db) : []
     const monitoring = db.prepare("SELECT name FROM sqlite_master WHERE name = 'ai_events'").get() ? monitoringSnapshot(db) : {events:[]}
     if (version < 6 && (originals.length || hasV6JourneyData(journey) || hasV6Monitoring(monitoring))) throw new Error('Use portable v6 to preserve source files and reviewed qualifications.')
+    if (version < 7 && monitoring.events.some(event=>event.diagnostic !== undefined)) throw new Error('Use portable v7 to preserve AI diagnostics.')
     const payload = {
       revision: db.prepare('SELECT revision FROM persistence_revision WHERE singleton = 1').get().revision,
       applications: db.prepare('SELECT data FROM applications ORDER BY id').all().map((row) => JSON.parse(row.data)),
@@ -43,7 +44,7 @@ export function exportSnapshot(db, settings, version = 6) {
 }
 
 export function validateSnapshot(snapshot) {
-  if (!snapshot || snapshot.format !== 'jobpilot-portable' || ![1, 2, 3, 4, 5, 6].includes(snapshot.version) || !snapshot.payload || snapshot.checksum !== checksum(snapshot.payload) || Object.keys(snapshot.payload).some((key) => !['revision', 'applications', 'analyses', 'settings', ...(snapshot.version >= 2 ? ['monitoring'] : []), ...(snapshot.version >= 3 ? ['actions', 'notificationReads'] : []), ...(snapshot.version >= 4 ? ['journey'] : []), ...(snapshot.version >= 5 ? ['interviewPlans'] : []), ...(snapshot.version >= 6 ? ['cvOriginals'] : [])].includes(key))) throw new Error('Invalid snapshot or checksum.')
+  if (!snapshot || snapshot.format !== 'jobpilot-portable' || ![1, 2, 3, 4, 5, 6, 7].includes(snapshot.version) || !snapshot.payload || snapshot.checksum !== checksum(snapshot.payload) || Object.keys(snapshot.payload).some((key) => !['revision', 'applications', 'analyses', 'settings', ...(snapshot.version >= 2 ? ['monitoring'] : []), ...(snapshot.version >= 3 ? ['actions', 'notificationReads'] : []), ...(snapshot.version >= 4 ? ['journey'] : []), ...(snapshot.version >= 5 ? ['interviewPlans'] : []), ...(snapshot.version >= 6 ? ['cvOriginals'] : [])].includes(key))) throw new Error('Invalid snapshot or checksum.')
   const { revision, applications, analyses, settings } = snapshot.payload
   if (!Number.isSafeInteger(revision) || revision < 0 || !settings || Array.isArray(settings) || typeof settings !== 'object' || Object.entries(settings).some(([field, value]) => !PUBLIC_FIELDS.includes(field) || typeof value !== 'string' || value.length > 100000)) throw new Error('Invalid snapshot settings.')
   for (const rows of [applications, analyses]) {
@@ -56,6 +57,7 @@ export function validateSnapshot(snapshot) {
   else if (snapshot.payload.actions?.some(action => action.interviewPlan) || snapshot.payload.notificationReads?.some(read => read.id.startsWith('["interview",'))) throw new Error('Interview planning requires portable v5.')
   if (snapshot.version < 6 && ((snapshot.version >= 4 && hasV6JourneyData(snapshot.payload.journey)) || (snapshot.version >= 2 && hasV6Monitoring(snapshot.payload.monitoring)))) throw new Error('New source and qualification data require portable v6.')
   validateOriginals(snapshot.version >= 6 ? snapshot.payload.cvOriginals : [], snapshot.version >= 4 ? snapshot.payload.journey : emptyJourney())
+  if (snapshot.version < 7 && snapshot.payload.monitoring?.events.some(event=>event.diagnostic !== undefined)) throw new Error('AI diagnostics require portable v7.')
   applications.forEach(validateApplicationEvents)
   applications.forEach(validateRegisterProjection)
   return snapshot.payload
