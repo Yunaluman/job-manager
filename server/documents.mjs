@@ -22,6 +22,7 @@ export function registerDocumentRoutes(app, db, confirmWrite) {
     const version = { id: randomUUID(), documentId, number: 1 + Math.max(0, ...rows.filter((row) => row.documentId === documentId).map((row) => row.number)), createdAt: now, title: input.title, status: input.status, content: input.content, layout: input.layout, templateVersion: input.kind === 'cv' ? 'single-column-cv-v1' : 'classic-letter-v1', sources: input.sources ?? {}, ...(input.parentVersionId ? { parentVersionId: input.parentVersionId } : {}) }
     const document = { id: documentId, kind: input.kind, ...(input.applicationId !== undefined ? { applicationId: input.applicationId } : {}), createdAt: old?.createdAt ?? now, updatedAt: now, latestVersionId: version.id }
     validateDocument(document); validateDocumentVersion(version)
+    if (version.sources.originalId && !db.prepare('SELECT id FROM cv_originals WHERE id = ?').get(version.sources.originalId)) fail('Fichier CV source absent.')
     db.prepare('INSERT INTO document_versions VALUES (?, ?)').run(version.id, JSON.stringify(version))
     db.prepare('INSERT INTO documents VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data').run(document.id, JSON.stringify(document))
     return { document, version }

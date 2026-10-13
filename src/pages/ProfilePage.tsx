@@ -1,3 +1,4 @@
+import { OriginalLibrary } from '../components/OriginalLibrary'
 import { useEffect, useState } from 'react'
 import { User, FileUp, Loader2 } from 'lucide-react'
 import { useSettings, saveSettings } from '../cv'
@@ -77,6 +78,7 @@ export function ProfilePage() {
         Ton identité et ton CV — la matière première des analyses et des lettres. Enregistre les modifications avant de quitter cette page.
       </p>
       <div className="flex flex-col gap-6">
+        <OriginalLibrary onSelect={value => setDraft(previous => ({ ...previous, cvText: value.text }))} />
         <CvDocumentsPanel />
         <OrphanDocuments />
         <button disabled={!dirty || saving} onClick={() => void saveProfile()} className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm disabled:opacity-50">{saving ? 'Enregistrement…' : 'Enregistrer l’identité et le texte source'}</button>
@@ -110,7 +112,7 @@ export function ProfilePage() {
         </section>
         <section className="rounded-xl border border-line bg-surface p-5">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <FileUp size={15} className="text-muted" /> Mon CV
+            <FileUp size={15} className="text-muted" /> Texte source historique — original non conservé
           </div>
           <button
             type="button"
@@ -134,7 +136,7 @@ export function ProfilePage() {
             {extracting ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
             {extracting
               ? 'Extraction du texte…'
-              : 'Déposer mon CV (PDF, DOCX, TXT) — traité localement, jamais envoyé'}
+              : 'Extraire un texte sans conserver le fichier'}
           </button>
           {fileError && <p className="mb-2 text-sm text-rose-700 dark:text-rose-400">{fileError}</p>}
           <textarea
