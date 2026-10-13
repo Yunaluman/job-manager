@@ -10,7 +10,7 @@ Source follow-up dates are consultable without generating tasks. Explicitly prep
 
 `actions` and `notification_reads` are separate SQLite tables. Initialization only adds tables; it does not rewrite dossiers or the register. `GET /api/state` includes both collections. `GET /api/actions` and `PUT /api/actions/:id` read/write tasks; `GET /api/notifications` derives alerts; `POST /api/notifications/read` confirms selected identities/date/stage. Writes use the local session, global revision and atomic operation receipts. Replaying a receipt does not append history. Invalid/new missing links, duplicate source ownership and stale notification confirmations are refused. Existing orphan links are retained. Forms preserve drafts on failure and expose synchronization after a conflict.
 
-Portable snapshots default to v3, retaining both planning collections. v1/v2 restores create empty planning tables. Exporting v1/v2 is refused when it would omit actions or read confirmations. Full encrypted SQLite backups also retain both tables; no credentials are added to portable JSON. Existing persistence, backup and uncertain AI cost warnings remain contextual.
+Portable snapshots default to v5, retaining actions, read confirmations, the application journey and independent interview plans. v1/v2 restores create empty action/read tables; v1-v4 restores create empty interview tables. Older exports are refused when they would omit newer data. Full encrypted SQLite backups retain these tables; no credentials are added to portable JSON. Existing persistence, backup and uncertain AI cost warnings remain contextual.
 
 ## Verification
 
