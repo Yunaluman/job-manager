@@ -1,37 +1,107 @@
 <!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <title>JobPilot · Prototype du parcours candidature</title>
-  <link rel="stylesheet" href="./prototype.css">
-</head>
-<body>
-  <a class="skip" href="#content">Aller au contenu</a>
-  <div class="prototype-note"><span class="prototype-tag">PROTOTYPE</span><span>Données fictives · aucune candidature réelle</span><button id="reset" type="button">Réinitialiser</button></div>
-  <div class="shell">
-    <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
-      <a class="brand" href="#dashboard"><span class="brand-mark" aria-hidden="true">J<span>•</span></span>JobPilot<span class="brand-dot">.</span></a>
-      <button class="mobile-close icon-button" type="button" aria-label="Fermer le menu" id="close-menu">×</button>
-      <div class="nav-label">MA RECHERCHE</div>
-      <nav>
-        <a href="#dashboard" data-nav="dashboard"><span data-icon="dashboard"></span>Tableau de bord</a>
-        <a href="#offers" data-nav="offers"><span data-icon="briefcase"></span>Offres<span class="nav-count" id="offer-count">3</span></a>
-        <a href="#applications" data-nav="applications"><span data-icon="layers"></span>Candidatures</a>
-        <a href="#documents" data-nav="documents"><span data-icon="file"></span>Mes documents</a>
-      </nav>
-      <div class="sidebar-bottom"><a href="#activity"><span data-icon="activity"></span>Activité IA</a><button type="button" id="theme"><span data-icon="moon"></span><span id="theme-label">Thème sombre</span></button><div class="profile"><span class="avatar">AM</span><div><strong>Alex Martin</strong><small>Profil fictif</small></div><span class="online" aria-label="Prototype local"></span></div></div>
-    </aside>
-    <button class="menu-shade" id="menu-shade" aria-label="Fermer la navigation" hidden></button>
-    <div class="workspace">
-      <header class="topbar"><button class="mobile-open icon-button" id="open-menu" aria-label="Ouvrir le menu" aria-controls="sidebar" aria-expanded="false"><span data-icon="menu"></span></button><span class="breadcrumb">Ma recherche <span aria-hidden="true">/</span> <strong id="crumb">Tableau de bord</strong></span><div class="topbar-right"><span class="local-indicator"><i></i> Local</span><span class="date">Mardi 13 octobre 2026</span></div></header>
-      <main id="content" tabindex="-1"></main>
-      <footer><span>JobPilot · Un dossier, tous les éléments.</span><div class="state-controls"><label for="scenario">État à examiner</label><select id="scenario"><option value="normal">Données fictives</option><option value="empty">Vide</option><option value="loading">Chargement</option><option value="error">Erreur</option></select></div></footer>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>JobPilot · Prototype du parcours candidature</title>
+    <link rel="stylesheet" href="./prototype.css" />
+  </head>
+  <body>
+    <a class="skip" href="#content">Aller au contenu</a>
+    <div class="prototype-note">
+      <span class="prototype-tag">PROTOTYPE</span
+      ><span>Données fictives · aucune candidature réelle</span
+      ><button id="reset" type="button">Réinitialiser</button>
     </div>
-  </div>
-  <div id="toast" role="status" aria-live="polite" hidden></div>
-  <dialog id="dialog"><div id="dialog-content"></div></dialog>
-  <script type="module" src="./prototype.mjs"></script>
-</body>
+    <div class="shell">
+      <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
+        <a class="brand" href="#dashboard"
+          ><span class="brand-mark" aria-hidden="true">J<span>•</span></span
+          >JobPilot<span class="brand-dot">.</span></a
+        >
+        <button
+          class="mobile-close icon-button"
+          type="button"
+          aria-label="Fermer le menu"
+          id="close-menu"
+        >
+          ×
+        </button>
+        <div class="nav-label">MA RECHERCHE</div>
+        <nav>
+          <a href="#dashboard" data-nav="dashboard"
+            ><span data-icon="dashboard"></span>Tableau de bord</a
+          >
+          <a href="#offers" data-nav="offers"
+            ><span data-icon="briefcase"></span>Offres<span
+              class="nav-count"
+              id="offer-count"
+              >3</span
+            ></a
+          >
+          <a href="#applications" data-nav="applications"
+            ><span data-icon="layers"></span>Candidatures</a
+          >
+          <a href="#documents" data-nav="documents"
+            ><span data-icon="file"></span>Mes documents</a
+          >
+        </nav>
+        <div class="sidebar-bottom">
+          <a href="#activity"><span data-icon="activity"></span>Activité IA</a
+          ><button type="button" id="theme">
+            <span data-icon="moon"></span
+            ><span id="theme-label">Thème sombre</span>
+          </button>
+          <div class="profile">
+            <span class="avatar">AM</span>
+            <div><strong>Alex Martin</strong><small>Profil fictif</small></div>
+            <span class="online" aria-label="Prototype local"></span>
+          </div>
+        </div>
+      </aside>
+      <button
+        class="menu-shade"
+        id="menu-shade"
+        aria-label="Fermer la navigation"
+        hidden
+      ></button>
+      <div class="workspace">
+        <header class="topbar">
+          <button
+            class="mobile-open icon-button"
+            id="open-menu"
+            aria-label="Ouvrir le menu"
+            aria-controls="sidebar"
+            aria-expanded="false"
+          >
+            <span data-icon="menu"></span></button
+          ><span class="breadcrumb"
+            >Ma recherche <span aria-hidden="true">/</span>
+            <strong id="crumb">Tableau de bord</strong></span
+          >
+          <div class="topbar-right">
+            <span class="local-indicator"><i></i> Local</span
+            ><span class="date">Mardi 13 octobre 2026</span>
+          </div>
+        </header>
+        <main id="content" tabindex="-1"></main>
+        <footer>
+          <span>JobPilot · Un dossier, tous les éléments.</span>
+          <div class="state-controls">
+            <label for="scenario">État à examiner</label
+            ><select id="scenario">
+              <option value="normal">Données fictives</option>
+              <option value="empty">Vide</option>
+              <option value="loading">Chargement</option>
+              <option value="error">Erreur</option>
+            </select>
+          </div>
+        </footer>
+      </div>
+    </div>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+    <dialog id="dialog"><div id="dialog-content"></div></dialog>
+    <script type="module" src="./prototype.mjs"></script>
+  </body>
 </html>

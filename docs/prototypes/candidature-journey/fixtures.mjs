@@ -1,12 +1,124 @@
 // Synthetic examples only. No user data, application API or provider is accessed.
 export const offers = [
-  { id: 'atelier', company: 'Atelier Numérique', initials: 'AN', color: 'violet', title: 'Développeur backend Python', location: 'Paris · Hybride', contract: 'CDI', salary: '38–43 k€', score: 84, source: 'Veille quotidienne', date: '13 oct.', category: 'Backend', matches: ['Python et API REST', 'SQL et PostgreSQL', 'Docker et tests'], unknowns: ['Deux années d’expérience à vérifier'], text: 'Atelier Numérique recherche un développeur backend Python pour concevoir des API au sein d’une équipe produit.\n\nMissions\nDévelopper des services Python, faire évoluer les API REST et travailler sur les données PostgreSQL. Participer aux revues de code et aux tests automatisés.\n\nProfil\nPython, SQL, Docker. Une première expérience en développement backend. Deux ans d’expérience appréciés.\n\nConditions\nCDI à Paris. Télétravail deux jours par semaine. Rémunération annoncée : 38–43 k€.', url: 'https://example.com/offres/backend-python' },
-  { id: 'horizon', company: 'Horizon Data', initials: 'HD', color: 'blue', title: 'Data engineer junior', location: 'Lyon · Télétravail partiel', contract: 'CDI', salary: 'Non indiqué', score: 76, source: 'Veille quotidienne', date: '13 oct.', category: 'Data', matches: ['Python et SQL', 'Pipelines de données', 'Projets documentés'], unknowns: ['Présence à Lyon', 'Niveau AWS attendu'], text: 'Horizon Data recherche un data engineer junior.\n\nMissions\nConcevoir des pipelines de données Python et SQL, documenter les transformations et contribuer aux contrôles qualité.\n\nConditions\nCDI à Lyon, télétravail partiel. AWS apprécié. Rémunération non précisée.', url: 'https://example.com/offres/data-junior' },
-  { id: 'studio', company: 'Studio des Services', initials: 'SS', color: 'amber', title: 'Développeur Power Platform', location: 'Nantes · Télétravail', contract: 'CDD', salary: '34–38 k€', score: 71, source: 'Ajout manuel', date: '12 oct.', category: 'Power Platform', matches: ['Power Apps', 'Power Automate', 'Analyse des besoins'], unknowns: ['Durée du CDD'], text: 'Développeur Power Platform : création d’applications Power Apps et de flux Power Automate.\n\nCDD, durée à confirmer. Télétravail possible. Rémunération : 34–38 k€.', url: 'https://example.com/offres/power-platform' },
-]
+  {
+    id: "atelier",
+    company: "Atelier Numérique",
+    initials: "AN",
+    color: "violet",
+    title: "Développeur backend Python",
+    location: "Paris · Hybride",
+    contract: "CDI",
+    salary: "38–43 k€",
+    score: 84,
+    source: "Veille quotidienne",
+    date: "13 oct.",
+    category: "Backend",
+    matches: ["Python et API REST", "SQL et PostgreSQL", "Docker et tests"],
+    unknowns: ["Deux années d’expérience à vérifier"],
+    text: "Atelier Numérique recherche un développeur backend Python pour concevoir des API au sein d’une équipe produit.\n\nMissions\nDévelopper des services Python, faire évoluer les API REST et travailler sur les données PostgreSQL. Participer aux revues de code et aux tests automatisés.\n\nProfil\nPython, SQL, Docker. Une première expérience en développement backend. Deux ans d’expérience appréciés.\n\nConditions\nCDI à Paris. Télétravail deux jours par semaine. Rémunération annoncée : 38–43 k€.",
+    url: "https://example.com/offres/backend-python",
+  },
+  {
+    id: "horizon",
+    company: "Horizon Data",
+    initials: "HD",
+    color: "blue",
+    title: "Data engineer junior",
+    location: "Lyon · Télétravail partiel",
+    contract: "CDI",
+    salary: "Non indiqué",
+    score: 76,
+    source: "Veille quotidienne",
+    date: "13 oct.",
+    category: "Data",
+    matches: ["Python et SQL", "Pipelines de données", "Projets documentés"],
+    unknowns: ["Présence à Lyon", "Niveau AWS attendu"],
+    text: "Horizon Data recherche un data engineer junior.\n\nMissions\nConcevoir des pipelines de données Python et SQL, documenter les transformations et contribuer aux contrôles qualité.\n\nConditions\nCDI à Lyon, télétravail partiel. AWS apprécié. Rémunération non précisée.",
+    url: "https://example.com/offres/data-junior",
+  },
+  {
+    id: "studio",
+    company: "Studio des Services",
+    initials: "SS",
+    color: "amber",
+    title: "Développeur Power Platform",
+    location: "Nantes · Télétravail",
+    contract: "CDD",
+    salary: "34–38 k€",
+    score: 71,
+    source: "Ajout manuel",
+    date: "12 oct.",
+    category: "Power Platform",
+    matches: ["Power Apps", "Power Automate", "Analyse des besoins"],
+    unknowns: ["Durée du CDD"],
+    text: "Développeur Power Platform : création d’applications Power Apps et de flux Power Automate.\n\nCDD, durée à confirmer. Télétravail possible. Rémunération : 34–38 k€.",
+    url: "https://example.com/offres/power-platform",
+  },
+];
 export const initialApplications = [
-  { id: 'meridian', company: 'Méridien Services', initials: 'MS', title: 'Développeur fullstack junior', location: 'Paris · Hybride', status: 'waiting', sent: true, date: '9 oct.', next: 'Relancer aujourd’hui', letter: '', letterSaved: true, history: [{ title: 'Candidature envoyée', detail: '9 octobre · formulaire employeur · CV et lettre PDF' }], sourceOffer: null },
-  { id: 'clair', company: 'Clair Conseil', initials: 'CC', title: 'Développeur BI / Power Platform', location: 'Paris · Hybride', status: 'interview', sent: true, date: '6 oct.', next: 'Entretien le 15 octobre', letter: '', letterSaved: true, history: [{ title: 'Entretien planifié', detail: '15 octobre · visioconférence · réalisation à confirmer' }, { title: 'Réponse du recruteur', detail: '12 octobre · invitation à un entretien' }, { title: 'Candidature envoyée', detail: '6 octobre · CV original' }], sourceOffer: null },
-]
-export const defaultLetter = `Madame, Monsieur,\n\nVotre offre de développeur backend Python retient mon attention pour la place accordée aux API et à la qualité du code.\n\nAu cours de mes projets de formation, j’ai développé des services Python, travaillé avec PostgreSQL et utilisé Docker. Ces réalisations m’ont permis de pratiquer la conception d’API, les tests et la documentation technique.\n\nJe souhaite poursuivre cet apprentissage au sein d’une équipe produit et contribuer à des services utiles et maintenables. Je serais heureux d’échanger avec vous sur le poste et les attentes de votre équipe.\n\nCordialement,\nAlex Martin`
-export const cv = { name: 'CV_Alex_Martin.pdf', size: '20 Ko', date: '10 octobre 2026', title: 'Développeur backend · Python & données', summary: 'Développeur en début de parcours, orienté API et données. Projets de formation en Python et SQL.', skills: ['Python · FastAPI', 'SQL · PostgreSQL', 'Docker · Git', 'Tests · Documentation'], projects: ['API de gestion de services — projet de formation', 'Pipeline de données publiques — projet personnel'], education: 'Formation en développement logiciel · 2026' }
+  {
+    id: "meridian",
+    company: "Méridien Services",
+    initials: "MS",
+    title: "Développeur fullstack junior",
+    location: "Paris · Hybride",
+    status: "waiting",
+    sent: true,
+    date: "9 oct.",
+    next: "Relancer aujourd’hui",
+    letter: "",
+    letterSaved: true,
+    history: [
+      {
+        title: "Candidature envoyée",
+        detail: "9 octobre · formulaire employeur · CV et lettre PDF",
+      },
+    ],
+    sourceOffer: null,
+  },
+  {
+    id: "clair",
+    company: "Clair Conseil",
+    initials: "CC",
+    title: "Développeur BI / Power Platform",
+    location: "Paris · Hybride",
+    status: "interview",
+    sent: true,
+    date: "6 oct.",
+    next: "Entretien le 15 octobre",
+    letter: "",
+    letterSaved: true,
+    history: [
+      {
+        title: "Entretien planifié",
+        detail: "15 octobre · visioconférence · réalisation à confirmer",
+      },
+      {
+        title: "Réponse du recruteur",
+        detail: "12 octobre · invitation à un entretien",
+      },
+      { title: "Candidature envoyée", detail: "6 octobre · CV original" },
+    ],
+    sourceOffer: null,
+  },
+];
+export const defaultLetter = `Madame, Monsieur,\n\nVotre offre de développeur backend Python retient mon attention pour la place accordée aux API et à la qualité du code.\n\nAu cours de mes projets de formation, j’ai développé des services Python, travaillé avec PostgreSQL et utilisé Docker. Ces réalisations m’ont permis de pratiquer la conception d’API, les tests et la documentation technique.\n\nJe souhaite poursuivre cet apprentissage au sein d’une équipe produit et contribuer à des services utiles et maintenables. Je serais heureux d’échanger avec vous sur le poste et les attentes de votre équipe.\n\nCordialement,\nAlex Martin`;
+export const cv = {
+  name: "CV_Alex_Martin.pdf",
+  size: "20 Ko",
+  date: "10 octobre 2026",
+  title: "Développeur backend · Python & données",
+  summary:
+    "Développeur en début de parcours, orienté API et données. Projets de formation en Python et SQL.",
+  skills: [
+    "Python · FastAPI",
+    "SQL · PostgreSQL",
+    "Docker · Git",
+    "Tests · Documentation",
+  ],
+  projects: [
+    "API de gestion de services — projet de formation",
+    "Pipeline de données publiques — projet personnel",
+  ],
+  education: "Formation en développement logiciel · 2026",
+};
