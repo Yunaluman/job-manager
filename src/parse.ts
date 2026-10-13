@@ -1,4 +1,4 @@
-import { detectOfferFields } from './offer-fields.mjs'
+import { detectOfferFields } from '../shared/domain/offer-fields.mjs'
 // Ajout express : extraction des champs d'une offre d'emploi collée.
 // Deux stratégies : IA (fournisseur configuré dans le module CV) avec repli
 // automatique sur une heuristique locale si pas de clé ou en cas d'erreur.

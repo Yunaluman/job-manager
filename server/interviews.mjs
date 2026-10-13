@@ -1,4 +1,4 @@
-import { validateInterviewInput, validateInterviewPlan, validateInterviewPlans, interviewNotificationId } from '../src/interviews-core.mjs'
+import { validateInterviewInput, validateInterviewPlan, validateInterviewPlans, interviewNotificationId } from '../shared/domain/interviews-core.mjs'
 
 export function initializeInterviews(db) {
   db.exec('CREATE TABLE IF NOT EXISTS interview_plans (id TEXT PRIMARY KEY, data TEXT NOT NULL);')
