@@ -18,6 +18,7 @@ Open the printed loopback URL. API requests require the current per-process sess
 
 - Dashboard, application table/kanban, follow-up dates and status history.
 - Daily actions, a decision queue and in-app deadline notifications; see [planning behavior and roadmap](docs/actions-and-notifications.md).
+- Planned interviews with declared sources, rescheduling history and independent in-app reminders; see [planned interviews](docs/interview-plans.md). A planned appointment does not count as a realized interview.
 - Factual period comparisons by source and job title, with dossier-level evidence and explicit missing-data limits; see [strategy review](docs/strategy-review.md).
 - Offer extraction with a local heuristic or a provider-assisted request.
 - Local PDF/DOCX/TXT text extraction for CVs.
