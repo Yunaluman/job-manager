@@ -10,6 +10,7 @@ export interface ActionInput {
   resultNote: string
   applicationId?: string
   source?: { applicationId: string; dueDate: string }
+  interviewPlan?: { id: string; scheduledDate: string }
 }
 export interface Action extends ActionInput {
   createdAt: string

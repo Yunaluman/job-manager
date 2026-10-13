@@ -8,12 +8,15 @@ const object = (value) => value && typeof value === 'object' && !Array.isArray(v
 const text = (value, max) => typeof value === 'string' && value.length <= max && !value.includes('\u0000')
 const timestamp = (value) => typeof value === 'string' && Number.isFinite(Date.parse(value))
 export function validateActionInput(action) {
-  if (!object(action) || Object.keys(action).some((key) => !['id', 'title', 'kind', 'dueDate', 'priority', 'note', 'status', 'resultNote', 'applicationId', 'source'].includes(key)) ||
+  if (!object(action) || Object.keys(action).some((key) => !['id', 'title', 'kind', 'dueDate', 'priority', 'note', 'status', 'resultNote', 'applicationId', 'source', 'interviewPlan'].includes(key)) ||
     !text(action.id, 200) || !action.id || !text(action.title, 300) || !action.title.trim() || !ACTION_KINDS.includes(action.kind) ||
     !ACTION_PRIORITIES.includes(action.priority) || !ACTION_STATUSES.includes(action.status) || !text(action.note, 10000) || !text(action.resultNote, 10000) ||
     (action.dueDate !== undefined && !validEventDate(action.dueDate)) || (action.applicationId !== undefined && (!text(action.applicationId, 200) || !action.applicationId))) fail('Action invalide.')
   if (action.source !== undefined && (!object(action.source) || Object.keys(action.source).some((key) => !['applicationId', 'dueDate'].includes(key)) ||
     action.source.applicationId !== action.applicationId || !action.applicationId || !validEventDate(action.source.dueDate))) fail('Échéance source invalide.')
+  if (action.interviewPlan !== undefined && (!object(action.interviewPlan) || Object.keys(action.interviewPlan).some(key => !['id', 'scheduledDate'].includes(key)) ||
+    !text(action.interviewPlan.id, 200) || !action.interviewPlan.id || !validEventDate(action.interviewPlan.scheduledDate) ||
+    !action.applicationId || action.kind !== 'prepare-interview' || action.source !== undefined)) fail('Préparation d’entretien invalide.')
 }
 export function validateAction(action) {
   if (!object(action)) fail('Action invalide.')

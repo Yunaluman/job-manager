@@ -12,6 +12,7 @@ import { initializeJourney, journeySnapshot, registerJourneyRoutes } from './jou
 import { registerDocumentRoutes } from './documents.mjs'
 import { cvText } from '../src/cv-document.mjs'
 import { registerSubmissionRoutes } from './submissions.mjs'
+import { initializeInterviews, interviewSnapshot, registerInterviewRoutes } from './interviews.mjs'
 
 export function initializeDatabase(db) {
   db.pragma('secure_delete = ON')
@@ -22,6 +23,7 @@ export function initializeDatabase(db) {
   initializeMonitoring(db)
   initializeActions(db)
   initializeJourney(db)
+  initializeInterviews(db)
 }
 export function createApp({ db, protector, port, development = false, fetchProvider = fetch, backupDirectory }) {
   assertDatabaseIntegrity(db)
@@ -68,6 +70,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   registerJourneyRoutes(app, db, confirmWrite)
   registerDocumentRoutes(app, db, confirmWrite)
   registerSubmissionRoutes(app, db, confirmWrite)
+  registerInterviewRoutes(app, db, confirmWrite)
   app.get('/api/export', (_req, res) => res.json(exportSnapshot(db, credentials.settings())))
   let backupRunning = false
   app.post('/api/backups', async (_req, res, next) => {
@@ -83,6 +86,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
       revision: writes.revision(),
       ...planningSnapshot(db),
       journey: journeySnapshot(db),
+      interviewPlans: interviewSnapshot(db),
       applications: db.prepare('SELECT data FROM applications').all().map((row) => JSON.parse(row.data)),
       analyses: db.prepare('SELECT data FROM analyses').all().map((row) => JSON.parse(row.data)),
       settings: credentials.settings(),
