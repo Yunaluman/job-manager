@@ -4,6 +4,7 @@ import { useModalFocus } from '../useModalFocus'
 
 const drafts = new Set<string>()
 const listeners = new Set<() => void>()
+export const hasUnsavedDrafts = () => drafts.size > 0
 const publish = () => listeners.forEach(listener => listener())
 export function DraftGuard({ dirty }: { dirty: boolean }) {
   const id = useId()

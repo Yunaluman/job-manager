@@ -1,3 +1,4 @@
+import { qualificationSummary, validateQualificationProposals } from '../src/qualification-core.mjs'
 import { randomUUID } from 'node:crypto'
 import { validateDocument, validateDocumentVersion, validateDocumentLinks } from './document-model.mjs'
 import { cvText } from '../src/cv-document.mjs'
@@ -23,10 +24,17 @@ export function validateOffer(value) {
   if (!date(createdAt) || !date(updatedAt) || !['pending', 'go', 'later', 'rejected'].includes(decision) || (applicationId !== undefined && !id(applicationId)) || !Array.isArray(decisions) || decisions.length > 1000 || decisions.some((entry) => !exact(entry, ['at', 'decision', 'reason']) || !date(entry.at) || !['go', 'later', 'rejected'].includes(entry.decision) || !string(entry.reason, 10000) || (entry.decision === 'rejected' && !entry.reason.trim()))) fail('Historique de décision invalide.')
 }
 export function validateQualification(value) {
-  if (!exact(value, ['id', 'offerId', 'offerText', 'cvText', 'createdAt', 'entries', 'analysis', 'cvVersionId']) || !id(value.id) || !id(value.offerId) || !string(value.offerText) || !string(value.cvText) || !date(value.createdAt) || (value.cvVersionId !== undefined && !id(value.cvVersionId)) || !Array.isArray(value.entries) || value.entries.length > 100 || new Set(value.entries.map((entry) => entry?.criterionId)).size !== value.entries.length) fail('Qualification invalide.')
+  if (!exact(value, ['id', 'offerId', 'offerText', 'cvText', 'createdAt', 'entries', 'analysis', 'cvVersionId', 'summary', 'proposals', 'proposalModel']) || !id(value.id) || !id(value.offerId) || !string(value.offerText) || !string(value.cvText) || !date(value.createdAt) || (value.cvVersionId !== undefined && !id(value.cvVersionId)) || !Array.isArray(value.entries) || value.entries.length > 100 || new Set(value.entries.map((entry) => entry?.criterionId)).size !== value.entries.length) fail('Qualification invalide.')
   for (const entry of value.entries) {
-    if (!exact(entry, ['criterionId', 'label', 'importance', 'result', 'justification', 'provenance']) || !id(entry.criterionId) || !string(entry.label, 300) || !entry.label.trim() || !['required', 'preferred'].includes(entry.importance) || !['met', 'unmet', 'unknown'].includes(entry.result) || !string(entry.justification, 10000) || entry.provenance !== 'manual') fail('Évaluation de critère invalide.')
+    if (!exact(entry, ['criterionId', 'label', 'importance', 'result', 'justification', 'provenance', 'cvEvidence', 'offerEvidence']) || !id(entry.criterionId) || !string(entry.label, 300) || !entry.label.trim() || !['required', 'preferred'].includes(entry.importance) || !['met', 'unmet', 'unknown'].includes(entry.result) || !string(entry.justification, 10000) || !['manual','ai-reviewed'].includes(entry.provenance) || (entry.cvEvidence !== undefined && (!string(entry.cvEvidence,10000) || (entry.cvEvidence && !value.cvText.includes(entry.cvEvidence)))) || (entry.offerEvidence !== undefined && (!string(entry.offerEvidence,10000) || (entry.offerEvidence && !value.offerText.includes(entry.offerEvidence))))) fail('Évaluation de critère invalide.')
   }
+  if (value.summary !== undefined && value.entries.some(entry=>entry.result !== 'unknown' && (!entry.justification.trim() || (!entry.cvEvidence?.trim() && !entry.offerEvidence?.trim())))) fail('Une correspondance ou incompatibilité nécessite une justification et une citation source exacte.')
+  if (value.summary !== undefined && JSON.stringify(value.summary) !== JSON.stringify(qualificationSummary(value.entries))) fail('Synthèse de qualification incohérente.')
+  if (value.proposals !== undefined) {
+    if (!string(value.proposalModel,120) || !value.proposalModel.trim()) fail('Modèle de proposition absent.')
+    try { validateQualificationProposals(value.proposals,value.entries.map(entry=>({id:entry.criterionId,label:entry.label,importance:entry.importance})),value.cvText,value.offerText) } catch { fail('Propositions de qualification non documentées.') }
+  } else if (value.proposalModel !== undefined || value.entries.some(entry=>entry.provenance === 'ai-reviewed')) fail('Propositions IA absentes.')
+  if (value.entries.some(entry=>entry.provenance === 'ai-reviewed' && !value.proposals?.some(proposal=>proposal.criterionId === entry.criterionId && proposal.result === entry.result && proposal.justification === entry.justification && proposal.cvEvidence === entry.cvEvidence && proposal.offerEvidence === entry.offerEvidence))) fail('Appréciation IA vérifiée incohérente.')
   if (value.analysis !== undefined && (!exact(value.analysis, ['text', 'score', 'mode', 'model']) || !string(value.analysis.text) || !value.analysis.text.trim() || !(value.analysis.score === null || Number.isInteger(value.analysis.score) && value.analysis.score >= 0 && value.analysis.score <= 100) || !['manual', 'api'].includes(value.analysis.mode) || !string(value.analysis.model, 300))) fail('Analyse indicative invalide.')
 }
 export const JOURNEY_VALIDATORS = { offers: validateOffer, criteria: validateCriterion, qualifications: validateQualification, documents: validateDocument, documentVersions: validateDocumentVersion, submissions: validateSubmission }
@@ -59,12 +67,13 @@ export function registerJourneyRoutes(app, db, confirmWrite) {
   })
   app.post('/api/offers/:id/qualification', (req, res) => confirmWrite(req, res, () => {
     const offer = get('offers', req.params.id); if (!offer) fail('Offre introuvable.')
-    if (!exact(req.body, ['id', 'entries', 'analysis', 'cvVersionId', 'cvText', 'offerText'])) fail('Qualification invalide.')
+    if (!exact(req.body, ['id', 'entries', 'analysis', 'cvVersionId', 'cvText', 'offerText', 'proposals', 'proposalModel'])) fail('Qualification invalide.')
     const settings = JSON.parse(db.prepare("SELECT value FROM settings WHERE key = 'main'").get()?.value ?? '{}')
     const selectedCv = req.body.cvVersionId ? get('document_versions', req.body.cvVersionId) : undefined
     if (req.body.cvVersionId && selectedCv?.templateVersion !== 'single-column-cv-v1') fail('Version CV introuvable.')
     if (selectedCv) { const document = get('documents', selectedCv.documentId); if (document.applicationId && document.applicationId !== offer.applicationId) fail('Le CV appartient à un autre dossier.') }
-    const saved = { ...req.body, offerId: offer.id, offerText: offer.text, cvText: selectedCv ? cvText(selectedCv.content, selectedCv.layout) : settings.cvText ?? '', createdAt: new Date().toISOString() }; validateQualification(saved)
+    if (!Array.isArray(req.body.entries)) fail('Critères invalides.')
+    const saved = { ...req.body, offerId: offer.id, offerText: offer.text, cvText: selectedCv ? cvText(selectedCv.content, selectedCv.layout) : settings.cvText ?? '', createdAt: new Date().toISOString(), summary:qualificationSummary(req.body.entries ?? []) }; validateQualification(saved)
     if (get('qualifications', saved.id)) fail('Cette qualification existe déjà.')
     if (journeySnapshot(db).qualifications.length >= 10000) fail('Limite de qualifications atteinte.')
     const criteria = journeySnapshot(db).criteria

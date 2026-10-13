@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-export const PURPOSES = ['offer-extraction', 'cv-analysis', 'letter-generation', 'cv-structuring']
+export const PURPOSES = ['offer-extraction', 'cv-analysis', 'letter-generation', 'cv-structuring', 'offer-qualification']
 export const STATUSES = ['in-progress', 'success', 'error', 'uncertain']
 const MODEL = /^[\w./:-]{1,120}$/
 const validModel = (value) => typeof value === 'string' && MODEL.test(value)
