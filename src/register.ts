@@ -1,4 +1,4 @@
-import type { Application } from './types'
+import type { Application } from '../shared/contracts/types'
 import { apiRequest } from './api'
 import { dataStore } from './data'
 

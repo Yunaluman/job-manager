@@ -4,12 +4,12 @@ import { openSync, writeFileSync, fsyncSync, closeSync, unlinkSync } from 'node:
 import Database from 'better-sqlite3'
 import { assertDatabaseIntegrity, PUBLIC_FIELDS } from './credentials.mjs'
 import { monitoringSnapshot, restoreMonitoring, validateMonitoringSnapshot } from './ai-monitoring.mjs'
-import { validateApplicationEvents } from '../src/application-events.mjs'
+import { validateApplicationEvents } from '../shared/domain/application-events.mjs'
 import { validateRegisterProjection } from './register-csv.mjs'
 import { planningSnapshot, validatePlanning, restorePlanning } from './actions.mjs'
 import { journeySnapshot, validateJourney, restoreJourney, emptyJourney } from './journey.mjs'
 import { interviewSnapshot, restoreInterviews } from './interviews.mjs'
-import { validateInterviewPlans } from '../src/interviews-core.mjs'
+import { validateInterviewPlans } from '../shared/domain/interviews-core.mjs'
 
 const hasV6JourneyData = journey => journey.offers.some(value=>value.acquisition !== undefined) || journey.qualifications.some(value=>value.summary !== undefined || value.proposals !== undefined || value.proposalModel !== undefined || value.entries.some(entry=>entry.provenance !== 'manual' || entry.cvEvidence !== undefined || entry.offerEvidence !== undefined)) || journey.documentVersions.some(version=>version.sources.originalId !== undefined || version.sources.prefill !== undefined)
 const hasV6Monitoring = monitoring => monitoring.events.some(event=>['cv-structuring','offer-qualification'].includes(event.purpose))

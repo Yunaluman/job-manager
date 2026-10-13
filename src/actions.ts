@@ -1,6 +1,6 @@
 import { dataStore } from './data'
-import type { Action, ActionInput, ActionNotification, NotificationReadState } from './action-types'
-import { validateAction, validateNotificationReadState } from './actions-core.mjs'
+import type { Action, ActionInput, ActionNotification, NotificationReadState } from '../shared/contracts/action-types'
+import { validateAction, validateNotificationReadState } from '../shared/domain/actions-core.mjs'
 
 export const KIND_LABELS: Record<ActionInput['kind'], string> = { prospect: 'Prospecter', 'prepare-application': 'Préparer une candidature', 'follow-up': 'Relancer', 'prepare-interview': 'Préparer un entretien', decide: 'Prendre une décision', other: 'Autre' }
 export const PRIORITY_LABELS = { low: 'Basse', normal: 'Normale', high: 'Haute' }

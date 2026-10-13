@@ -1,6 +1,6 @@
 import { dataStore } from './data'
-import type { Offer, Criterion, Qualification } from './journey-types'
-import type { Application } from './types'
+import type { Offer, Criterion, Qualification } from '../shared/contracts/journey-types'
+import type { Application } from '../shared/contracts/types'
 export const DECISION_LABELS = { pending: 'À décider', go: 'Poursuivre', later: 'Plus tard', rejected: 'Écartée' }
 export const RESULT_LABELS = { met: 'Correspondance documentée', unmet: 'Incompatibilité documentée', unknown: 'À vérifier' }
 export function saveOffer(input: Pick<Offer, 'id' | 'company' | 'title' | 'text' | 'url' | 'note'>) {

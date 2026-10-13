@@ -1,10 +1,10 @@
 // All mutations update the cache only after server confirmation.
-import type { Application, Status } from './types'
-import { STATUS_LABELS, applicationStatusLabel } from './types'
+import type { Application, Status } from '../shared/contracts/types'
+import { STATUS_LABELS, applicationStatusLabel } from '../shared/contracts/types'
 import { dataStore, useData } from './data'
 import { apiGet } from './api'
-import { applicationEvents, validEventDate, firstSendDate } from './application-events.mjs'
-import type { ApplicationEvent } from './types'
+import { applicationEvents, validEventDate, firstSendDate } from '../shared/domain/application-events.mjs'
+import type { ApplicationEvent } from '../shared/contracts/types'
 
 export function useApplications(): Application[] { return useData().applications }
 

@@ -2,7 +2,7 @@ import PDFDocument from 'pdfkit'
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx'
 import { fileURLToPath } from 'node:url'
 import { letterBlocks } from './document-model.mjs'
-import { cvBlocks } from '../src/cv-document.mjs'
+import { cvBlocks } from '../shared/domain/cv-document.mjs'
 const fonts = { regular: fileURLToPath(new URL('./fonts/carlito/Carlito-Regular.ttf', import.meta.url)), bold: fileURLToPath(new URL('./fonts/carlito/Carlito-Bold.ttf', import.meta.url)) }
 export async function renderDocument(version, format) {
   const blocks = version.templateVersion === 'single-column-cv-v1' ? cvBlocks(version.content, version.layout) : letterBlocks(version), { fontSize, marginMm } = version.layout
