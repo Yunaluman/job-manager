@@ -19,3 +19,9 @@ Validation: real synthetic PDF/DOCX imports, malformed/scanned/oversized refusal
 Local proposals detect explicit labels and contact details. Explicit AI structuring sends only the retained source through the monitored provider route; server/client validate strict JSON and require every non-empty value and evidence to occur in the source. Unknown fields are omitted. Selected proposals update a compared draft; optional contact application updates a separate profile draft. Only a human save creates an immutable CV version, retaining original ID, source text, proposal mode/model and applied fields. Human corrections remain allowed.
 
 Validation: 23 targeted tests passed (prefill, originals, CV versions and AI monitoring), TypeScript/build passed, synthetic browser local/AI proposals and selective application/version save checked, with 390px mobile width 384px. Local review completed; no independent review.
+
+## Lot 4: explicit offer collection
+
+Pasting text suggests fields only when empty and untouched. Explicit AI extraction does not overwrite human edits and requires extracted employer/title values in the source. URL retrieval is an authenticated explicit command with pinned validated DNS addresses, checks at every redirect, HTTP(S) public ports only, a 10s deadline and 1 MiB response limit. Scripts/resources are not executed; protected, incomplete and unsupported pages fall back to manual paste. Acquisition stores initial/final URLs, time and retrieved text alongside the reviewed offer; portable v6 retains it and old exports refuse loss.
+
+Validation: 9 targeted tests passed, TypeScript/Vite build passed. Synthetic browser checks covered paste detection, private-destination refusal, retained human employer correction, simulated retrieval and confirmed save. Mobile width 390px/document 384px. Local review corrected overwrite paths and disabled fields during async commands; independent review pending.

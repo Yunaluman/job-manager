@@ -1,3 +1,4 @@
+import { detectOfferFields } from './offer-fields.mjs'
 // Ajout express : extraction des champs d'une offre d'emploi collée.
 // Deux stratégies : IA (fournisseur configuré dans le module CV) avec repli
 // automatique sur une heuristique locale si pas de clé ou en cas d'erreur.
@@ -53,21 +54,23 @@ export function parseOfferHeuristic(text: string): ParsedOffer {
   )
   out.salary = salary?.[1].replace(/\s+/g, ' ').trim()
 
-  return out
+  return { ...out, ...detectOfferFields(text) }
 }
 
 export async function parseOfferWithApi(text: string, s: Settings): Promise<ParsedOffer> {
+  if (text.length > 28000) throw new Error('Offre trop longue pour cette extraction IA. Aucun appel envoyé.')
   const raw = await callApi(`Extrais de cette offre d'emploi un JSON strict (sans markdown, sans commentaire) avec exactement ces clés : company (nom de l'entreprise), title (intitulé du poste, sans "H/F"), location (ville), salary (tel qu'écrit, sinon null), source (site d'origine si identifiable, sinon null). Valeurs en français, null si introuvable.
 
 OFFRE :
-${text.slice(0, 6000)}`, s, 'offer-extraction', 300, 0)
+${text}`, s, 'offer-extraction', 300, 0)
   const json = raw.match(/\{[\s\S]*\}/)?.[0]
   if (!json) throw new Error('Pas de JSON dans la réponse')
   const parsed = JSON.parse(json)
-  const clean = (v: unknown) => (typeof v === 'string' && v.trim() && v !== 'null' ? v.trim() : undefined)
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw new Error('Champs IA invalides.')
+  const clean = (v: unknown) => (typeof v === 'string' && v.trim() && v.length <= 300 && v !== 'null' ? v.trim() : undefined)
   return {
-    company: clean(parsed.company),
-    title: clean(parsed.title),
+    company: clean(parsed.company) && text.toLowerCase().includes(clean(parsed.company)!.toLowerCase()) ? clean(parsed.company) : undefined,
+    title: clean(parsed.title) && text.toLowerCase().includes(clean(parsed.title)!.toLowerCase()) ? clean(parsed.title) : undefined,
     location: clean(parsed.location),
     salary: clean(parsed.salary),
     source: clean(parsed.source),

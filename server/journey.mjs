@@ -14,7 +14,8 @@ export function validateCriterion(value) {
   if (!exact(value, ['id', 'label', 'importance']) || !id(value.id) || !string(value.label, 300) || !value.label.trim() || !['required', 'preferred'].includes(value.importance)) fail('Critère invalide.')
 }
 export function validateOfferInput(value) {
-  if (!exact(value, ['id', 'company', 'title', 'text', 'url', 'note']) || !id(value.id) || !string(value.company, 300) || !value.company.trim() || !string(value.title, 300) || !value.title.trim() || !string(value.text) || !value.text.trim() || !string(value.note, 10000) || !string(value.url, 2000) || !url(value.url)) fail('Offre invalide. Vérifie l’entreprise, le poste et le contenu.')
+  if (!exact(value, ['id', 'company', 'title', 'text', 'url', 'note', 'acquisition']) || !id(value.id) || !string(value.company, 300) || !value.company.trim() || !string(value.title, 300) || !value.title.trim() || !string(value.text) || !value.text.trim() || !string(value.note, 10000) || !string(value.url, 2000) || !url(value.url)) fail('Offre invalide. Vérifie l’entreprise, le poste et le contenu.')
+  if (value.acquisition !== undefined && (!exact(value.acquisition, ['initialUrl','finalUrl','retrievedAt','text']) || !string(value.acquisition.initialUrl,2000) || !value.acquisition.initialUrl || !url(value.acquisition.initialUrl) || !string(value.acquisition.finalUrl,2000) || !value.acquisition.finalUrl || !url(value.acquisition.finalUrl) || !date(value.acquisition.retrievedAt) || !string(value.acquisition.text) || !value.acquisition.text.trim())) fail('Provenance de récupération invalide.')
 }
 export function validateOffer(value) {
   if (!value || typeof value !== 'object') fail('Offre invalide.')
