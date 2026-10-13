@@ -11,6 +11,8 @@ import { journeySnapshot, validateJourney, restoreJourney, emptyJourney } from '
 import { interviewSnapshot, restoreInterviews } from './interviews.mjs'
 import { validateInterviewPlans } from '../src/interviews-core.mjs'
 
+const hasV6JourneyData = journey => journey.offers.some(value=>value.acquisition !== undefined) || journey.qualifications.some(value=>value.summary !== undefined || value.proposals !== undefined || value.proposalModel !== undefined || value.entries.some(entry=>entry.provenance !== 'manual' || entry.cvEvidence !== undefined || entry.offerEvidence !== undefined)) || journey.documentVersions.some(version=>version.sources.originalId !== undefined || version.sources.prefill !== undefined)
+const hasV6Monitoring = monitoring => monitoring.events.some(event=>['cv-structuring','offer-qualification'].includes(event.purpose))
 const checksum = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 export function exportSnapshot(db, settings, version = 6) {
   assertDatabaseIntegrity(db)
@@ -23,14 +25,15 @@ export function exportSnapshot(db, settings, version = 6) {
     if (version < 5 && (interviewPlans.length || planning.actions.some(action => action.interviewPlan) || planning.notificationReads.some(read => read.id.startsWith('["interview",')))) throw new Error('Use portable v5 to preserve interview planning.')
     if (version < 3 && (planning.actions.length || planning.notificationReads.length)) throw new Error('Use portable v3 to preserve actions and notification read states.')
     const originals = db.prepare("SELECT name FROM sqlite_master WHERE name = 'cv_originals'").get() ? originalSnapshot(db) : []
-    if (version < 6 && (originals.length || journey.offers.some(offer=>offer.acquisition) || journey.documentVersions.some(version => version.sources.originalId))) throw new Error('Use portable v6 to preserve original CV files.')
+    const monitoring = db.prepare("SELECT name FROM sqlite_master WHERE name = 'ai_events'").get() ? monitoringSnapshot(db) : {events:[]}
+    if (version < 6 && (originals.length || hasV6JourneyData(journey) || hasV6Monitoring(monitoring))) throw new Error('Use portable v6 to preserve source files and reviewed qualifications.')
     const payload = {
       revision: db.prepare('SELECT revision FROM persistence_revision WHERE singleton = 1').get().revision,
       applications: db.prepare('SELECT data FROM applications ORDER BY id').all().map((row) => JSON.parse(row.data)),
       analyses: db.prepare('SELECT data FROM analyses ORDER BY id').all().map((row) => JSON.parse(row.data)),
       settings: Object.fromEntries(PUBLIC_FIELDS.filter((field) => typeof settings[field] === 'string').map((field) => [field, settings[field]])),
     }
-    if (version >= 2) payload.monitoring = monitoringSnapshot(db)
+    if (version >= 2) payload.monitoring = monitoring
     if (version >= 3) Object.assign(payload, planning)
     if (version >= 4) payload.journey = journey
     if (version >= 5) payload.interviewPlans = interviewPlans
@@ -51,6 +54,7 @@ export function validateSnapshot(snapshot) {
   if (snapshot.version >= 4) validateJourney(snapshot.payload.journey)
   if (snapshot.version >= 5) validateInterviewPlans(snapshot.payload.interviewPlans, snapshot.payload.actions)
   else if (snapshot.payload.actions?.some(action => action.interviewPlan) || snapshot.payload.notificationReads?.some(read => read.id.startsWith('["interview",'))) throw new Error('Interview planning requires portable v5.')
+  if (snapshot.version < 6 && ((snapshot.version >= 4 && hasV6JourneyData(snapshot.payload.journey)) || (snapshot.version >= 2 && hasV6Monitoring(snapshot.payload.monitoring)))) throw new Error('New source and qualification data require portable v6.')
   validateOriginals(snapshot.version >= 6 ? snapshot.payload.cvOriginals : [], snapshot.version >= 4 ? snapshot.payload.journey : emptyJourney())
   applications.forEach(validateApplicationEvents)
   applications.forEach(validateRegisterProjection)
