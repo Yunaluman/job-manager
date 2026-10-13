@@ -30,7 +30,7 @@ test('portable v6 preserves originals; old exports refuse loss, tampering and mi
   const { call, db, directory } = await journeyFixture(t)
   assert.equal((await call('/api/cv-originals', 'POST', upload())).status, 200)
   const snapshot = exportSnapshot(db, {})
-  assert.equal(snapshot.version, 6); assert.throws(() => exportSnapshot(db, {}, 5))
+  assert.equal(snapshot.version, 7); assert.throws(() => exportSnapshot(db, {}, 5))
   const destination = join(directory, 'restored.db'); restoreSnapshot(snapshot, destination)
   const restored = new Database(destination)
   assert.deepEqual(originalSnapshot(restored), originalSnapshot(db)); restored.close()

@@ -1,3 +1,4 @@
+import { validateDiagnostic } from '../shared/domain/ai-diagnostics.mjs'
 import { randomUUID } from 'node:crypto'
 
 export const PURPOSES = ['offer-extraction', 'cv-analysis', 'letter-generation', 'cv-structuring', 'offer-qualification']
@@ -77,9 +78,13 @@ export function estimateCost(usage, tariff) {
   return { costNanoUsd: Number(cost), costReason: 'estimated', tariff: structuredClone(tariff) }
 }
 
-const eventFields = ['id', 'purpose', 'provider', 'requestedModel', 'returnedModel', 'startedAt', 'endedAt', 'durationMs', 'status', 'errorKind', 'usageState', 'inputTokens', 'outputTokens', 'cachedInputTokens', 'costNanoUsd', 'costReason', 'tariff']
+const eventFields = ['diagnostic', 'id', 'purpose', 'provider', 'requestedModel', 'returnedModel', 'startedAt', 'endedAt', 'durationMs', 'status', 'errorKind', 'usageState', 'inputTokens', 'outputTokens', 'cachedInputTokens', 'costNanoUsd', 'costReason', 'tariff']
 const reasons = ['in-progress', 'interrupted', 'usage-absent', 'usage-invalid', 'usage-unsupported', 'tariff-unknown', 'category-unknown', 'amount-out-of-range', 'model-unknown', 'estimated']
 export function validateEvent(value) {
+  if (value?.diagnostic !== undefined && value.diagnostic !== null) {
+    validateDiagnostic(value.diagnostic)
+    if (value.status === 'in-progress' || value.diagnostic.kind !== (value.errorKind ?? value.status)) throw bad()
+  }
   if (!only(value, eventFields) || !/^[0-9a-f-]{36}$/.test(value.id ?? '') || !PURPOSES.includes(value.purpose) || !['mistral', 'zai'].includes(value.provider) || !validModel(value.requestedModel) || (value.returnedModel !== null && !validModel(value.returnedModel)) || !iso(value.startedAt) || (value.endedAt !== null && (!iso(value.endedAt) || value.endedAt < value.startedAt)) || (value.durationMs !== null && (!Number.isSafeInteger(value.durationMs) || value.durationMs < 0)) || !STATUSES.includes(value.status) || ![null, 'provider', 'response', 'transport', 'timeout', 'restart'].includes(value.errorKind) || !['pending', 'absent', 'invalid', 'unsupported', 'valid'].includes(value.usageState) || !reasons.includes(value.costReason) || [value.inputTokens, value.outputTokens, value.cachedInputTokens].some((n) => n !== null && !count(n)) || (value.costNanoUsd !== null && (!Number.isSafeInteger(value.costNanoUsd) || value.costNanoUsd < 0))) throw bad()
   if (value.tariff !== null) validateTariff(value.tariff)
   if (value.status === 'in-progress' && (value.endedAt !== null || value.durationMs !== null || value.errorKind !== null || value.usageState !== 'pending' || value.costReason !== 'in-progress' || value.costNanoUsd !== null)) throw bad()
@@ -128,6 +133,7 @@ export function createMonitoring(db) {
     for (const row of db.prepare("SELECT data FROM ai_events WHERE json_extract(data, '$.status') = 'in-progress'").all()) {
       const event = JSON.parse(row.data)
       event.status = 'uncertain'; event.errorKind = 'restart'; event.costReason = 'interrupted'
+      event.diagnostic = {version:1,kind:'restart',httpStatus:null,providerCode:null,requestId:null}
       db.prepare('UPDATE ai_events SET data = ? WHERE id = ?').run(JSON.stringify(event), event.id)
     }
   })()
@@ -142,9 +148,10 @@ export function createMonitoring(db) {
     })()
     return { event, tariffs, started: performance.now() }
   }
-  const finish = (attempt, { status, errorKind = null, response, secret }) => {
+  const finish = (attempt, { status, errorKind = null, response, secret, diagnostic }) => {
     const event = { ...attempt.event, endedAt: new Date().toISOString(), durationMs: Math.max(0, Math.round(performance.now() - attempt.started)), status, errorKind }
-    // Never retain raw provider errors, response IDs, bodies or usage objects.
+    if (diagnostic !== undefined) event.diagnostic = validateDiagnostic(diagnostic)
+    // Retain only validated diagnostics; never provider messages or raw bodies.
     event.returnedModel = validModel(response?.model) && !(secret && response.model.includes(secret)) ? response.model : null
     const usage = normalizeUsage(event.provider, response?.usage)
     event.usageState = usage.state

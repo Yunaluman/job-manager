@@ -51,6 +51,6 @@ test('portable v4 and encrypted snapshots preserve journey; older exports cannot
   for(const version of [1,2,3]) {const old=exportSnapshot(db,{},version),path=join(directory,`v${version}.db`);restoreSnapshot(old,path);const restored=new Database(path);try{assert.equal(journeySnapshot(restored).offers.length,0)}finally{restored.close()}}
   await call('/api/offers/offer-fixture','PUT',syntheticOffer)
   for(const version of [1,2,3])assert.throws(()=>exportSnapshot(db,{},version),/v4/)
-  const snapshot=exportSnapshot(db,{});assert.equal(snapshot.version,6);const path=join(directory,'v5.db');restoreSnapshot(snapshot,path);const restored=new Database(path);try{assert.deepEqual(journeySnapshot(restored),journeySnapshot(db))}finally{restored.close()}
+  const snapshot=exportSnapshot(db,{});assert.equal(snapshot.version, 7);const path=join(directory,'v5.db');restoreSnapshot(snapshot,path);const restored=new Database(path);try{assert.deepEqual(journeySnapshot(restored),journeySnapshot(db))}finally{restored.close()}
   const backup=await createEncryptedBackup(db,protector,directory),bytes=decodeBackup(JSON.parse(readFileSync(backup.path,'utf8')),protector).bytes;const encrypted=new Database(bytes);try{assert.deepEqual(journeySnapshot(encrypted),journeySnapshot(db))}finally{encrypted.close()}
 })

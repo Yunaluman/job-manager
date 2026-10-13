@@ -1,3 +1,4 @@
+import { providerDiagnostic, providerError } from '../../provider-errors.mjs'
 import { qualificationPrompt, validateQualificationProposals } from '../../../shared/domain/qualification-core.mjs'
 import { prefillPrompt, validatePrefill } from '../../../shared/domain/cv-prefill.mjs'
 import { cvText } from '../../../shared/domain/cv-document.mjs'
@@ -42,6 +43,7 @@ export function createAiService({ db, credentials, monitoring, fetchProvider }) 
     try { attempt = monitoring.begin({ purpose, provider, model }) }
     catch { return res.status(503).json({ error: 'Journal IA indisponible. Aucun appel fournisseur envoyé.' }) }
     inFlight = true
+    let diagnostic
     let outcome = { status: 'uncertain', errorKind: 'transport' }, reply = { error: 'Appel fournisseur interrompu ou indisponible.' }, httpStatus = 502
     try {
       const result = await fetchProvider(`${PROVIDERS[provider]}/chat/completions`, {
@@ -49,10 +51,12 @@ export function createAiService({ db, credentials, monitoring, fetchProvider }) 
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
         body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature, max_tokens: maxTokens, ...(provider === 'mistral' ? { service_tier: 'standard_only' } : {}) }),
       })
+      diagnostic = providerDiagnostic({status: result.status, headers: result.headers, secret: key, kind: result.ok ? 'success' : 'provider'})
       if (!result.ok) {
         const response = await result.json().catch(() => undefined)
         outcome = { status: 'error', errorKind: 'provider', response }
-        reply = { error: result.status === 401 ? 'Clé API invalide ou expirée.' : `Le fournisseur a refusé la requête (${result.status}).` }
+        diagnostic = providerDiagnostic({status:result.status, response, headers:result.headers, secret:key})
+        reply = providerError({status:result.status, provider, response, headers:result.headers, secret:key, attemptId:attempt.event.id})
       } else {
         const response = await result.json()
         const content = response?.choices?.[0]?.message?.content
@@ -70,7 +74,7 @@ export function createAiService({ db, credentials, monitoring, fetchProvider }) 
     } catch (error) {
       outcome = error instanceof SyntaxError ? { status: 'error', errorKind: 'response' } : { status: 'uncertain', errorKind: ['TimeoutError', 'AbortError'].includes(error?.name) ? 'timeout' : 'transport' }
     } finally {
-      try { monitoring.finish(attempt, { ...outcome, secret: key }) }
+      try { monitoring.finish(attempt, { ...outcome, secret: key, diagnostic: { ...(diagnostic ?? providerDiagnostic({secret:key})), kind: outcome.errorKind ?? 'success' } }) }
       catch {
         // Keep the original pending row: never retry a paid call on a logging error.
         reply = { ...reply, monitoringWarning: 'Résultat du journal non confirmé ; coût inconnu. Ne relance pas cet appel pour cette raison.' }
