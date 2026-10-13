@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 @theme inline {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
   --color-canvas: var(--app-canvas);
   --color-surface: var(--app-surface);
   --color-subtle: var(--app-subtle);
@@ -12,11 +12,13 @@
   --color-muted: var(--app-muted);
 }
 :root {
-  --app-canvas: #f5f6f4; --app-surface: #fff; --app-subtle: #eef3f1;
-  --app-field: #fafbf9; --app-line: #dce4e0; --app-ink: #172c32;
-  --app-secondary: #33455f; --app-muted: #52627a;
+  color-scheme: light;
+  --app-canvas: #f6f7fb; --app-surface: #fff; --app-subtle: #f0f2f8;
+  --app-field: #fff; --app-line: #e5e8f0; --app-ink: #20273c;
+  --app-secondary: #414b63; --app-muted: #626b80;
 }
 [data-theme=dark] {
+  color-scheme: dark;
   --app-canvas: #0b1120; --app-surface: #121c2e; --app-subtle: #1a2740;
   --app-field: #0e1829; --app-line: #30415c; --app-ink: #f0f4fc;
   --app-secondary: #c5d2e6; --app-muted: #a2b3cb;
@@ -47,42 +49,42 @@
 
 /* Shared visual language; status colors retain their semantic meaning. */
 @layer components {
-  .app-panel { border-radius: 20px; box-shadow: 0 3px 16px #18332b04; }
-  .app-primary { background: #0d6b56; border-radius: 12px; box-shadow: 0 3px 8px #0d6b561a; min-height: 44px; }
-  .app-primary:hover { background: #095340; }
+  .app-panel { border-radius: 12px; box-shadow: 0 3px 14px #20273c04; }
+  .app-primary { background: #5054d6; border-radius: 12px; box-shadow: 0 3px 8px #5054d61a; min-height: 44px; }
+  .app-primary:hover { background: #4246b8; }
   .app-button { min-height: 44px; transition: background 120ms, border-color 120ms; }
   .app-field { min-height: 44px; border-radius: 10px; line-height: 1.5; }
-  .app-field:focus { border-color: #148268; box-shadow: 0 0 0 3px #14826818; }
-  .app-eyebrow { color: #0d6b56; font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 12px; }
-  .app-sidebar { background: #152c33; color: #f3f7f5; border: 0; overflow-y: auto; }
-  .app-nav-link { color: #bbcbd0; border-radius: 10px; min-height: 44px; }
-  .app-nav-link:hover { background: #ffffff0b; color: #fff; }
-  .app-nav-link.active { background: #ffffff12; color: #fff; box-shadow: inset 3px 0 #75d2ad; }
-  .app-nav-label { color: #89a4ae; }
-  .app-topbar { background: var(--app-canvas); border-color: transparent; }
-  .app-content h1 { font-size: clamp(1.8rem, 2.8vw, 2.8rem); font-weight: 650; letter-spacing: -.045em; line-height: 1.15; }
+  .app-field:focus { border-color: #5054d6; box-shadow: 0 0 0 3px #5054d618; }
+  .app-eyebrow { color: #5054d6; font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 12px; }
+  .app-sidebar { @apply border-r border-line bg-surface text-ink; overflow-y: auto; }
+  .app-nav-link { @apply rounded-lg text-muted; min-height: 44px; }
+  .app-nav-link:hover { @apply bg-subtle text-ink; }
+  .app-nav-link.active { @apply bg-indigo-500/10 text-indigo-700 dark:text-indigo-300; box-shadow: none; }
+  .app-nav-label { @apply text-muted; }
+  .app-topbar { @apply border-line bg-surface; }
+  .app-content h1 { font-size: clamp(1.5rem, 2vw, 1.85rem); font-weight: 650; letter-spacing: -.025em; line-height: 1.15; }
   .app-content h2 { letter-spacing: -.025em; }
-  .app-content p { line-height: 1.65; }
+  .app-content p { line-height: 1.5; }
   .app-page > div > h1 + p { max-width: 65ch; margin-top: 12px; margin-bottom: 32px; }
-  .app-content section.rounded-xl.border { border-radius: 20px; }
+  .app-content section.rounded-xl.border { border-radius: 12px; }
   .app-content table thead { background: var(--app-subtle); }
   .app-content table tbody tr:hover { background: var(--app-field); }
   .app-content summary { cursor: pointer; padding-block: 8px; }
-  .app-content summary:focus-visible { outline: 2px solid #148268; outline-offset: 3px; }
+  .app-content summary:focus-visible { outline: 2px solid #5054d6; outline-offset: 3px; }
   .app-step { display: flex; align-items: center; gap: 10px; padding: 14px 18px; font-size: 13px; color: var(--app-secondary); }
-  .app-step span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--app-subtle); color: #0d6b56; font-weight: 700; }
+  .app-step span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--app-subtle); color: #5054d6; font-weight: 700; }
   .app-step:hover { background: var(--app-subtle); }
   .qualification-card { border: 1px solid var(--app-line); border-radius: 16px; padding: 20px; background: var(--app-surface); }
-  .qualification-card[data-result=met] { border-left: 3px solid #148268; }
+  .qualification-card[data-result=met] { border-left: 3px solid #5054d6; }
   .qualification-card[data-result=unmet] { border-left: 3px solid #e46060; }
   .qualification-card[data-result=unknown] { border-left: 3px solid #ba873d; }
   .qualification-summary { border-radius: 18px; background: var(--app-subtle); padding: 24px; }
   .qualification-summary[data-recommendation=go] { background: #eaf6ef; color: #173e30; }
   .qualification-summary[data-recommendation=rejected] { background: #fff0ed; color: #713b32; }
   .qualification-summary[data-recommendation=verify] { background: #fcf4e7; color: #644723; }
-  .app-import { position: relative; border: 1px dashed #8db5a8; border-radius: 16px; padding: 24px; background: var(--app-field); }
+  .app-import { position: relative; border: 1px dashed #b4b7e6; border-radius: 16px; padding: 24px; background: var(--app-field); }
   .app-import input { display: block; max-width: 100%; margin-top: 16px; font-size: 13px; }
-  .app-import input::file-selector-button { border: 0; border-radius: 8px; padding: 10px 14px; margin-right: 12px; background: #0d6b56; color: white; cursor: pointer; }
+  .app-import input::file-selector-button { border: 0; border-radius: 8px; padding: 10px 14px; margin-right: 12px; background: #5054d6; color: white; cursor: pointer; }
   .app-file-card { border: 1px solid var(--app-line); border-radius: 14px; padding: 16px; }
   .app-empty { padding: 40px 24px; text-align: center; border: 1px dashed var(--app-line); border-radius: 18px; background: var(--app-field); }
   .app-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
@@ -108,4 +110,4 @@
 .app-content [role=tablist] { gap: 4px; }
 .app-content [role=tab] { border-radius: 10px; min-height: 44px; }
 .app-content [role=tab][aria-selected=true] { background: var(--app-subtle); color: var(--app-ink); }
-.app-nav-link:focus-visible { outline-color: #75d2ad; }
+.app-nav-link:focus-visible { outline-color: #a5a7fb; }

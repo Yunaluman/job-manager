@@ -1,7 +1,7 @@
-import { qualificationSummary, validateQualificationProposals } from '../src/qualification-core.mjs'
+import { qualificationSummary, validateQualificationProposals } from '../shared/domain/qualification-core.mjs'
 import { randomUUID } from 'node:crypto'
 import { validateDocument, validateDocumentVersion, validateDocumentLinks } from './document-model.mjs'
-import { cvText } from '../src/cv-document.mjs'
+import { cvText } from '../shared/domain/cv-document.mjs'
 import { validateSubmission, validateSubmissionLinks } from './submissions.mjs'
 
 export const JOURNEY_TABLES = { offers: 'offers', criteria: 'search_criteria', qualifications: 'qualifications', documents: 'documents', documentVersions: 'document_versions', submissions: 'submissions' }

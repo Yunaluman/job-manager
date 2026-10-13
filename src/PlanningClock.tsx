@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { parisDay } from './actions-core.mjs'
+import { parisDay } from '../shared/domain/actions-core.mjs'
 
 const DayContext = createContext(parisDay())
 export const usePlanningDay = () => useContext(DayContext)

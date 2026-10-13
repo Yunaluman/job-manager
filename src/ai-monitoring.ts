@@ -21,7 +21,7 @@ export interface AiSummary {
   breakdown: { purpose: keyof typeof purposeNames; provider: string; model: string; known: number; unknown: number; estimatedNanoUsd: string }[]
 }
 export interface AiBudget extends AiSummary { month: string; monthlyLimitCents: number | null; exceeded: boolean; uncertain: boolean }
-export { usd, tokenNumber } from './ai-format.mjs'
+export { usd, tokenNumber } from '../shared/domain/ai-format.mjs'
 export function saveAiConfig(path: string, method: 'PUT' | 'POST', body: unknown) {
   return dataStore.mutate<AiConfig>(() => ({ method, path, body, apply: (state, aiConfig) => ({ ...state, aiConfig }) }))
 }

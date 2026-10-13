@@ -1,5 +1,5 @@
-import { validEventDate } from '../src/application-events.mjs'
-import { parisDay } from '../src/actions-core.mjs'
+import { validEventDate } from '../shared/domain/application-events.mjs'
+import { parisDay } from '../shared/domain/actions-core.mjs'
 const fail = (message) => { throw Object.assign(new Error(message), { status: 400 }) }
 const id = (value) => typeof value === 'string' && value.length > 0 && value.length <= 200 && !/[\x00-\x1f]/.test(value)
 export function validateSubmission(value) {

@@ -32,4 +32,4 @@ export function validateDocumentLinks(journey) {
 export function letterBlocks(version) {
   return LETTER_FIELDS.filter((key) => !version.layout.hidden.includes(key) && version.content[key].trim()).flatMap((key) => version.content[key].split('\n').map((line) => ({ text: line, bold: key === 'subject', right: key === 'recipient' || key === 'placeDate', after: key === 'body' ? 5 : 8 })))
 }
-import { validateCv } from '../src/cv-document.mjs'
+import { validateCv } from '../shared/domain/cv-document.mjs'
