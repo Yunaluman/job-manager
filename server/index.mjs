@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import os from 'node:os'
 import { createApp } from './app.mjs'
+import { createDailyInboxWorker } from './daily-inbox.mjs'
 import { createWindowsProtector } from './credentials.mjs'
 
 const development = process.argv.includes('--dev')
@@ -14,6 +15,7 @@ const dataDir = process.env.JOBPILOT_DATA_DIR ?? (process.env.LOCALAPPDATA ? joi
 mkdirSync(dataDir, { recursive: true })
 let db
 let vite
+let inbox
 const server = createServer()
 const starting = (_req, res) => {
   res.writeHead(503, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' })
@@ -27,6 +29,7 @@ async function close(code = 0) {
   server.closeAllConnections()
   await new Promise((done) => server.close(done))
   await vite?.close()
+  await inbox?.stop()
   db?.close()
   process.exitCode = code
 }
@@ -40,7 +43,9 @@ try {
   })
   db = new Database(join(dataDir, 'jobpilot.db'))
   db.pragma('journal_mode = WAL')
-  const { app, token, acceptsHostAndOrigin } = createApp({ db, protector: createWindowsProtector(), port, development, backupDirectory: join(dataDir, 'backups') })
+  const { app, token, writes, acceptsHostAndOrigin } = createApp({ db, protector: createWindowsProtector(), port, development, backupDirectory: join(dataDir, 'backups'), dailyStatus:()=>inbox?.status()??null })
+  inbox=createDailyInboxWorker({db,writes,dataDirectory:dataDir})
+  await inbox.start()
   server.prependListener('upgrade', (req, socket) => {
     if (!acceptsHostAndOrigin(req.headers)) socket.destroy()
   })

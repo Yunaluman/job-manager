@@ -1,134 +1,267 @@
-import { Panel } from '../../shared/ui/Panel'
-import { PageHeading } from '../../shared/ui/PageHeading'
-import { TrendingUp, Send, MessageSquare, XCircle, Trophy, Globe } from 'lucide-react'
-import type { Application } from '../../../shared/contracts/types'
-import { useApplications } from '../../storage'
-import { funnelMetrics, applicationEvents } from '../../../shared/domain/application-events.mjs'
-import { PlanningSummary } from '../planning/PlanningSummary'
-import { JourneySummary } from '../applications/JourneySummary'
-import { useData, usePersistenceStatus } from '../../data'
-import { withDeclaredSends } from '../../../shared/domain/journey-progress.mjs'
-import { Link } from '@tanstack/react-router'
-
-function StatCard({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: number | null
-  accent: string
-}) {
-  return (
-    <Panel className="p-4 sm:p-5">
-      <div className={`mb-2 inline-flex rounded-lg p-2 ${accent}`}>{icon}</div>
-      <div className="text-2xl font-bold tabular-nums sm:text-3xl">{value ?? '—'}</div>
-      <div className="mt-1 text-xs text-muted sm:text-sm">{label}</div>
-    </Panel>
-  )
-}
-
-function SourceStats({ apps }: { apps: Application[] }) {
-  // Group documented milestones; rates only use applications with dated sends.
-  const documented = apps.filter((a) => applicationEvents(a).length > 0)
-  const bySource = new Map<string, Application[]>()
-  for (const a of documented) {
-    const key = a.source?.trim() || 'Autre'
-    bySource.set(key, [...(bySource.get(key) ?? []), a])
-  }
-  const rows = [...bySource.entries()]
-    .map(([source, list]) => {
-      const metrics = funnelMetrics(list)
-      const entretiens = metrics.interviews
-      return {
-        source,
-        envoyees: metrics.sent,
-        entretiens,
-        tauxReponse: metrics.responseRate,
-        tauxEntretien: metrics.interviewRate,
-      }
-    })
-    .sort((a, b) => b.envoyees - a.envoyees)
-
-  if (rows.length === 0) return null
-
-  return (
-    <div className="mt-8 app-panel">
-      <div className="flex items-center gap-2 border-b border-line px-5 py-4">
-        <Globe size={16} className="text-sky-700 dark:text-sky-400" />
-        <h2 className="font-semibold">Par plateforme</h2>
-        <span className="ml-auto text-xs text-muted">étapes documentées</span>
-      </div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm">
-        <thead>
-          <tr className="text-left text-xs uppercase tracking-wide text-muted">
-            <th className="px-5 py-2.5 font-medium">Source</th>
-            <th className="px-3 py-2.5 text-right font-medium">Envoyées</th>
-            <th className="px-3 py-2.5 text-right font-medium">Entretiens</th>
-            <th className="px-3 py-2.5 text-right font-medium">Tx réponse</th>
-            <th className="px-5 py-2.5 font-medium">Tx entretien</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
-          {rows.map((r) => (
-            <tr key={r.source}>
-              <td className="px-5 py-3 font-medium">{r.source}</td>
-              <td className="px-3 py-3 text-right tabular-nums text-secondary">{r.envoyees}</td>
-              <td className="px-3 py-3 text-right tabular-nums text-secondary">{r.entretiens}</td>
-              <td className="px-3 py-3 text-right tabular-nums text-secondary">{r.tauxReponse === null ? '—' : `${r.tauxReponse}%`}</td>
-              <td className="px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-full max-w-32 overflow-hidden rounded-full bg-subtle">
-                    <div
-                      className="h-full rounded-full bg-indigo-500"
-                      style={{ width: `${r.tauxEntretien ?? 0}%` }}
-                    />
-                  </div>
-                  <span className="w-9 text-right text-xs tabular-nums text-muted">
-                    {r.tauxEntretien === null ? '—' : `${r.tauxEntretien}%`}
-                  </span>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table></div>
-    </div>
-  )
-}
-
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Send, Clock, CalendarDays, RotateCcw } from "lucide-react";
+import { useData, usePersistenceStatus, synchronize } from "../../data";
+import { usePlanningDay } from "../../PlanningClock";
+import { dashboardSummary } from "../../../shared/domain/dashboard.mjs";
+import { OfferScore } from "../offers/OfferScore";
+import { DailyReviews } from "../offers/DailyReviews";
+import { Button } from "../../shared/ui/Button";
 export function Dashboard() {
-  const submissions = useData().journey.submissions
-  const apps = useApplications().map(app=>withDeclaredSends(app,submissions))
-  const metrics = funnelMetrics(apps)
-  const persistence = usePersistenceStatus()
-  const confirmed = persistence.ready && !persistence.blocked && persistence.pending === 0
-
+  const state = useData(),
+    status = usePersistenceStatus(),
+    day = usePlanningDay(),
+    [period, setPeriod] = useState(30);
+  const metrics = dashboardSummary(state, day, period),
+    offers = state.journey.offers
+      .filter((o) => o.decision === "pending")
+      .sort(
+        (a, b) =>
+          (b.dailyProposal?.proposal.score ?? -1) -
+            (a.dailyProposal?.proposal.score ?? -1) ||
+          b.createdAt.localeCompare(a.createdAt),
+      );
+  const ready = status.ready && !status.blocked && status.pending === 0;
+  const stats = [
+    {
+      label: "Candidatures envoyées",
+      value: metrics.sent,
+      icon: Send,
+      hint: `${period} derniers jours`,
+    },
+    {
+      label: "En attente de réponse",
+      value: metrics.waiting,
+      icon: Clock,
+      hint: "Situation actuelle",
+    },
+    {
+      label: "Entretiens à venir",
+      value: metrics.interviews,
+      icon: CalendarDays,
+      hint: "Dates annoncées",
+    },
+    {
+      label: "Relances dues",
+      value: metrics.followups,
+      icon: RotateCcw,
+      hint: "Aujourd’hui ou en retard",
+    },
+  ];
   return (
-    <div className="mx-auto max-w-5xl">
-      <PageHeading title="Tableau de bord" description="Tes dossiers et les prochaines actions." />
-      {confirmed ? <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Indicateurs documentés">
-        <StatCard icon={<Send size={18} />} label="Envois datés" value={metrics.sent} accent="bg-sky-500/15 text-sky-700 dark:text-sky-300" />
-        <StatCard icon={<MessageSquare size={18} />} label="Entretiens datés" value={metrics.interviews} accent="bg-violet-500/15 text-violet-700 dark:text-violet-300" />
-        <StatCard icon={<Trophy size={18} />} label="Offres datées" value={metrics.offers} accent="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" />
-        <StatCard icon={<XCircle size={18} />} label="Refus datés" value={metrics.refusals} accent="bg-rose-500/15 text-rose-700 dark:text-rose-300" />
-        <StatCard icon={<TrendingUp size={18} />} label="Taux entretien (%)" value={metrics.interviewRate} accent="bg-indigo-500/15 text-indigo-700 dark:text-indigo-300" />
-      </div> : <p role="status" className="my-4 text-sm text-muted">{persistence.blocked ? 'Statistiques indisponibles : synchronise les données.' : 'Chargement ou confirmation en cours…'}</p>}
-      <div className="mb-8 grid gap-3 sm:grid-cols-3" aria-label="Accès rapides">
-        <Link to="/offres" className="app-panel group p-5"><p className="app-eyebrow">Explorer</p><h2 className="font-semibold">Qualifier une offre <span aria-hidden="true">↗</span></h2><p className="mt-2 text-sm text-muted">Vérifier les correspondances avant de décider.</p></Link>
-        <Link to="/actions" className="app-panel p-5"><p className="app-eyebrow">Avancer</p><h2 className="font-semibold">Organiser la suite <span aria-hidden="true">↗</span></h2><p className="mt-2 text-sm text-muted">Relances, préparation et entretiens à suivre.</p></Link>
-        <Link to="/bilan" className="app-panel p-5"><p className="app-eyebrow">Comprendre</p><h2 className="font-semibold">Faire le point <span aria-hidden="true">↗</span></h2><p className="mt-2 text-sm text-muted">Comparer les périodes à partir des faits datés.</p></Link>
+    <div className="mx-auto max-w-6xl space-y-6">
+      {state.dailyStatus?.error && (
+        <p role="alert" className="text-sm text-rose-700">
+          {state.dailyStatus.error}
+        </p>
+      )}
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Tableau de bord</h1>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          Envois
+          <select
+            aria-label="Période des envois"
+            className="app-field w-auto"
+            value={period}
+            onChange={(e) => setPeriod(Number(e.target.value))}
+          >
+            <option value={30}>30 jours</option>
+            <option value={7}>7 jours</option>
+            <option value={90}>90 jours</option>
+          </select>
+        </label>
+      </header>
+      <section
+        aria-label="Indicateurs de candidature"
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+      >
+        {stats.map(({ label, value, icon: Icon, hint }) => (
+          <div className="app-panel p-4 sm:p-5" key={label}>
+            <Icon size={18} className="mb-3 text-primary" />
+            <p className="text-3xl font-semibold tabular-nums">
+              {ready ? value : "—"}
+            </p>
+            <h2 className="mt-1 text-sm font-medium">{label}</h2>
+            <p className="mt-1 text-xs text-muted">{hint}</p>
+          </div>
+        ))}
+      </section>
+      {!ready && (
+        <p role="status" className="text-sm text-muted">
+          {status.blocked
+            ? "Données à synchroniser ; les compteurs sont indisponibles."
+            : "Chargement ou confirmation en cours…"}
+        </p>
+      )}
+      {ready && (
+        <>
+          <section className="app-panel p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="font-semibold">À faire aujourd’hui</h2>
+              <Link to="/actions" search={{}} className="text-sm underline">
+                Toutes les actions
+              </Link>
+            </div>
+            {!metrics.preparation.length && !metrics.alerts.length ? (
+              <p className="text-sm text-muted">Aucune tâche urgente connue.</p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {metrics.preparation.slice(0, 3).map((app) => (
+                  <li
+                    key={app.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium break-words">
+                        {app.company} — {app.title}
+                      </p>
+                      <p className="text-xs text-muted">
+                        Candidature à terminer · envoi non documenté
+                      </p>
+                    </div>
+                    <Link
+                      to="/candidatures/$id"
+                      params={{ id: app.id }}
+                      search={{ tab: "documents" }}
+                      className="app-button"
+                    >
+                      Reprendre
+                    </Link>
+                  </li>
+                ))}
+                {metrics.alerts.slice(0, 4).map((alert) => (
+                  <li
+                    key={alert.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium break-words">
+                        {alert.title}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {alert.dueDate}
+                        {alert.dueDate < day ? " · à clarifier" : ""}
+                      </p>
+                    </div>
+                    <Link
+                      to="/actions"
+                      search={
+                        alert.interviewPlanId
+                          ? { interview: alert.interviewPlanId }
+                          : {}
+                      }
+                      className="app-button"
+                    >
+                      Voir
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {metrics.preparation.length > 3 && (
+              <Link
+                to="/candidatures"
+                className="mt-3 inline-block text-sm underline"
+              >
+                Toutes les candidatures à terminer ({metrics.preparation.length}
+                )
+              </Link>
+            )}
+          </section>
+          <section className="app-panel p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-semibold">
+                Offres à examiner ({offers.length})
+              </h2>
+              <Link to="/offres" className="text-sm underline">
+                Toutes les offres
+              </Link>
+            </div>
+            {!offers.length ? (
+              <p className="text-sm text-muted">
+                Les prochaines propositions apparaîtront ici.
+              </p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {offers.slice(0, 5).map((offer) => (
+                  <li
+                    key={offer.id}
+                    className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold break-words">
+                        {offer.company}
+                      </p>
+                      <p className="text-sm break-words">{offer.title}</p>
+                      <p className="my-1 text-xs text-muted">
+                        {offer.location || "Localisation inconnue"}
+                      </p>
+                      <OfferScore
+                        offer={offer}
+                        qualifications={state.journey.qualifications}
+                      />
+                    </div>
+                    <Link
+                      to="/offres"
+                      search={{ offer: offer.id }}
+                      className="app-button self-start"
+                    >
+                      Examiner l’offre
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <DailyReviews />
+          <section className="app-panel p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-semibold">Activité récente</h2>
+              <Link to="/bilan" search={{}} className="text-sm underline">
+                Bilan détaillé
+              </Link>
+            </div>
+            {metrics.activity.length ? (
+              <ul className="space-y-3">
+                {metrics.activity.map((item) => (
+                  <li key={item.id} className="text-sm">
+                    <p className="break-words">
+                      {item.label} · {item.company}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {new Date(item.at).toLocaleString("fr-FR")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">Aucune activité documentée.</p>
+            )}
+            <details className="mt-4 text-xs text-muted">
+              <summary className="cursor-pointer">
+                Comprendre les compteurs
+              </summary>
+              <p className="mt-2">
+                {metrics.unknownHistory} dossier(s) avec historique incomplet.
+                Un statut seul ne prouve aucun envoi ; un entretien annoncé
+                n’est pas un entretien réalisé. Les envois comptent les dossiers
+                ayant un envoi daté dans la période.
+              </p>
+            </details>
+          </section>
+        </>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
+        <span>Réception locale au démarrage, puis toutes les 30 secondes.</span>
+        <Button
+          type="button"
+          className="app-button"
+          disabled={status.pending > 0}
+          onClick={() => void synchronize().catch(() => {})}
+        >
+          Actualiser les données
+        </Button>
       </div>
-      <PlanningSummary />
-      <JourneySummary />
-
-      {confirmed && <>
-
-      {metrics.unknownHistory > 0 && <p className="mt-4 text-sm text-muted">Historique incomplet pour {metrics.unknownHistory} dossier(s). Les étapes non documentées ne sont pas comptées. Les taux concernent uniquement les dossiers ayant un envoi daté.</p>}
-      <SourceStats apps={apps} />
-      </>}
     </div>
-  )
+  );
 }
