@@ -1,91 +1,93 @@
-# JobPilot — Suivi de candidatures
+# JobPilot — Job application tracker
 
-Application locale pour piloter une recherche d'emploi : suivi des candidatures (LinkedIn, HelloWork, Indeed…), relances à ne pas rater, et analyse de CV par IA face à une offre précise.
+**English** · [Français](README.fr.md)
 
-## Démarrage
+A local app to run a job search: track applications (LinkedIn, HelloWork, Indeed…), never miss a follow-up, and get an AI analysis of your CV against a specific job offer.
+
+## Getting started
 
 ```bash
 pnpm install
-pnpm dev        # lance l'API SQLite (127.0.0.1:3001) + le front (http://localhost:5173)
-pnpm build      # type-check + build de production dans dist/
+pnpm dev        # starts the SQLite API (127.0.0.1:3001) + the front end (http://localhost:5173)
+pnpm build      # type-check + production build into dist/
 ```
 
-Prérequis : Node 22+, pnpm 9+.
+Requirements: Node 22+, pnpm 9+.
 
-## Fonctionnalités
+## Features
 
-### Tableau de bord (`/`)
-- Compteurs : candidatures envoyées, entretiens, offres, refus, taux d'entretien.
-- **Relances à faire** : toute candidature dont la date de « prochaine action » est atteinte ou dépassée remonte ici automatiquement (sauf si refusée ou offre reçue).
-- **Par plateforme** : candidatures envoyées, entretiens, taux de réponse et taux d'entretien par source (LinkedIn, HelloWork…) — pour savoir où investir son temps.
+### Dashboard (`/`)
+- Counters: applications sent, interviews, offers, rejections, interview rate.
+- **Follow-ups due**: any application whose "next action" date is reached or past shows up here automatically (unless rejected or an offer was received).
+- **By platform**: applications sent, interviews, response rate and interview rate per source (LinkedIn, HelloWork…) — so you know where to spend your time.
 
-### Candidatures (`/candidatures`)
-- Vue **tableau** (tri visuel, liens vers les offres) et vue **kanban** (glisser-déposer une carte pour changer son statut).
-- **Ajout express** : coller le texte d'une offre → entreprise, poste, lieu, salaire et source extraits automatiquement (IA si clé configurée, heuristique locale sinon), formulaire pré-rempli à valider.
-- Relance proposée par défaut à J+7 ; passage en « Relancée » = prochaine relance replanifiée automatiquement.
-- Statuts : À postuler → Postulée → Relancée → Entretien → Offre / Refusée.
-- Chaque changement de statut est enregistré dans l'historique de la candidature.
-- **Fiche détail** (clic sur une ligne) : toutes les infos, changement de statut rapide, et timeline de l'historique.
-- Recherche par entreprise, poste ou lieu ; tri par colonne (3e clic = ordre par défaut).
+### Applications (`/candidatures`)
+- **Table** view (visual sorting, links to offers) and **kanban** view (drag a card to change its status).
+- **Quick add**: paste a job posting → company, position, location, salary and source are extracted automatically (AI if a key is configured, local heuristics otherwise), with a pre-filled form to confirm.
+- Follow-up suggested at D+7 by default; moving to "Followed up" automatically schedules the next follow-up.
+- Statuses: To apply → Applied → Followed up → Interview → Offer / Rejected.
+- Every status change is recorded in the application's history.
+- **Detail sheet** (click a row): all the info, quick status change, and a history timeline.
+- Search by company, position or location; sort by column (3rd click = default order).
 
-### Amélioration CV (`/cv`)
-Un « recruteur senior » (IA) note ton CV sur 100 face à une fiche de poste : points forts/faibles, reformulations prêtes à copier, mots-clés ATS manquants, verdict.
+### CV improvement (`/cv`)
+A "senior recruiter" (AI) scores your CV out of 100 against a job description: strengths/weaknesses, ready-to-copy rewordings, missing ATS keywords, verdict.
 
-Le CV se dépose en fichier (PDF/DOCX/TXT, extraction du texte 100% locale) ou se colle en texte ; il est mémorisé pour les analyses suivantes. L'analyse inclut un score **Compatibilité ATS /100** : couverture des mots-clés de l'offre, mots-clés critiques absents et où les insérer.
+Upload the CV as a file (PDF/DOCX/TXT, text extraction is 100% local) or paste it as text; it is remembered for later analyses. The analysis includes an **ATS compatibility score /100**: coverage of the offer's keywords, missing critical keywords and where to insert them.
 
-Deux modes :
-1. **Sans API (gratuit)** : « Copier le prompt » → coller dans Claude / ChatGPT / Mistral (abonnement chat) → « Coller le résultat » pour l'archiver. La note /100 est extraite automatiquement.
-2. **API directe** : fournisseur configurable (presets Mistral et Z.ai/GLM, ou toute API au format OpenAI via URL personnalisée) → analyse en un clic.
+Two modes:
+1. **No API (free)**: "Copy prompt" → paste into Claude / ChatGPT / Mistral (chat subscription) → "Paste result" to archive it. The /100 score is extracted automatically.
+2. **Direct API**: configurable provider (Mistral and Z.ai/GLM presets, or any OpenAI-compatible API via a custom URL) → one-click analysis.
 
-### Lettre de motivation (`/lettre`)
-Lettre ciblée sur l'offre, appuyée uniquement sur le CV mémorisé (rien d'inventé), 250-350 mots sans formules creuses. Champ « points à mettre en avant » optionnel. Mêmes deux modes que le module CV (prompt à copier ou génération API), lettres archivées avec bouton « Copier la lettre ».
+### Cover letter (`/lettre`)
+A letter targeted at the offer, based only on the stored CV (nothing invented), 250–350 words without empty phrases. Optional "points to highlight" field. Same two modes as the CV module (prompt to copy or API generation); letters are archived with a "Copy letter" button.
 
-### Exports (barre latérale)
-- **Excel (.xlsx)** : onglet « Candidatures », dates Excel réelles, pour consulter/partager.
-- **JSON** : sauvegarde complète (avec historique), ré-importable via « Importer ».
+### Exports (sidebar)
+- **Excel (.xlsx)**: "Applications" sheet with real Excel dates, to browse or share.
+- **JSON**: full backup (including history), re-importable via "Import".
 
-## Où sont mes données ?
+## Where is my data?
 
-Dans une base **SQLite locale** : `%LOCALAPPDATA%\JobPilot\jobpilot.db` (Windows), servie par un petit serveur Node (`server/index.mjs`) qui n'écoute que sur `127.0.0.1` — inaccessible depuis le réseau.
+In a **local SQLite database**: `%LOCALAPPDATA%\JobPilot\jobpilot.db` (Windows), served by a small Node server (`server/index.mjs`) that only listens on `127.0.0.1` — unreachable from the network.
 
-- Les données **survivent au nettoyage du navigateur** et sont indépendantes du navigateur utilisé.
-- Sauvegarde = copier ce fichier `.db` (ou export JSON depuis la sidebar).
-- Au premier lancement, les anciennes données localStorage sont **migrées automatiquement** vers SQLite.
-- La clé API Mistral est stockée dans cette base, n'est **jamais incluse dans les exports**, et n'est envoyée qu'à `api.mistral.ai` en HTTPS.
-- Honnêteté sur le modèle de menace : un fichier local reste lisible par un malware ayant accès au disque — la vraie protection, c'est le chiffrement du disque (BitLocker) et un poste sain.
+- Data **survives clearing the browser** and does not depend on which browser you use.
+- Backup = copy that `.db` file (or JSON export from the sidebar).
+- On first launch, older localStorage data is **migrated automatically** to SQLite.
+- The Mistral API key is stored in this database, is **never included in exports**, and is only sent to `api.mistral.ai` over HTTPS.
+- Honest threat model: a local file can still be read by malware with disk access — the real protection is disk encryption (BitLocker) and a healthy machine.
 
 ## Architecture
 
 ```
 server/
-└── index.mjs             # API Express + SQLite (better-sqlite3), 127.0.0.1:3001
+└── index.mjs             # Express + SQLite API (better-sqlite3), 127.0.0.1:3001
 src/
-├── main.tsx              # Bootstrap + routes TanStack Router (/, /candidatures, /cv)
-├── types.ts              # Modèle Application, statuts, libellés/couleurs
-├── api.ts                # Client HTTP vers le serveur local (écritures optimistes)
-├── storage.ts            # Persistance candidatures + exports Excel/JSON
-├── cv.ts                 # Module CV : réglages, analyses, prompt recruteur+ATS, appel IA
-├── parse.ts              # Ajout express : extraction d'offre (IA ou heuristique)
-├── extract.ts            # Extraction texte des fichiers CV (PDF/DOCX/TXT, local)
+├── main.tsx              # Bootstrap + TanStack Router routes (/, /candidatures, /cv)
+├── types.ts              # Application model, statuses, labels/colors
+├── api.ts                # HTTP client for the local server (optimistic writes)
+├── storage.ts            # Application persistence + Excel/JSON exports
+├── cv.ts                 # CV module: settings, analyses, recruiter+ATS prompt, AI call
+├── parse.ts              # Quick add: offer extraction (AI or heuristics)
+├── extract.ts            # Text extraction from CV files (PDF/DOCX/TXT, local)
 ├── components/
-│   ├── Layout.tsx        # Sidebar + navigation + boutons export/import
-│   ├── ApplicationForm.tsx  # Modal création/édition
+│   ├── Layout.tsx        # Sidebar + navigation + export/import buttons
+│   ├── ApplicationForm.tsx  # Create/edit modal
 │   └── StatusBadge.tsx
 └── pages/
     ├── Dashboard.tsx
-    ├── Applications.tsx  # Vues tableau + kanban
+    ├── Applications.tsx  # Table + kanban views
     └── CvPage.tsx
 ```
 
-Stack : Vite · React 19 · TypeScript · TanStack Router · Tailwind CSS v4 · pnpm.
+Stack: Vite · React 19 · TypeScript · TanStack Router · Tailwind CSS v4 · pnpm.
 
-**Principe clé** : toute la persistance passe par `storage.ts` et `cv.ts` (hooks `useApplications`, `useSettings`, `useAnalyses` basés sur `useSyncExternalStore`, cache mémoire + écritures optimistes vers l'API). L'UI ne parle jamais au serveur directement — pour passer en SaaS, il suffira de pointer `api.ts` vers un serveur distant avec authentification.
+**Key principle**: all persistence goes through `storage.ts` and `cv.ts` (`useApplications`, `useSettings`, `useAnalyses` hooks built on `useSyncExternalStore`, in-memory cache + optimistic writes to the API). The UI never talks to the server directly — going SaaS only requires pointing `api.ts` at a remote server with authentication.
 
-## Branches git
+## Git branches
 
-- `main` : version stable.
-- `development` : branche de travail — développer ici, fusionner dans `main` quand c'est stable.
+- `main`: stable version.
+- `development`: working branch — develop here, merge into `main` once stable.
 
 ## Roadmap
 
-- [ ] Gestion utilisateurs + backend (version SaaS) — **la clé API devra alors passer côté serveur**
+- [ ] User management + backend (SaaS version) — **the API key will then have to move server-side**
