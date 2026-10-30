@@ -1,3 +1,4 @@
+import { dailySnapshot, validateDailyReceipts, restoreDailyInbox } from './daily-inbox.mjs'
 import { hasNativeData, validatePreparation } from './register-native.mjs'
 import { originalSnapshot, restoreOriginals, validateOriginals } from './cv-originals.mjs'
 import { createHash } from 'node:crypto'
@@ -30,6 +31,8 @@ export function exportSnapshot(db, settings, version = 7) {
     if (version < 6 && (originals.length || hasV6JourneyData(journey) || hasV6Monitoring(monitoring))) throw new Error('Use portable v6 to preserve source files and reviewed qualifications.')
     if (version < 7 && (monitoring.events.some(event=>event.diagnostic !== undefined) || journey.documentVersions.some(value=>value.sources.generationProvider !== undefined))) throw new Error('Use portable v7 to preserve AI diagnostics and generation provenance.')
     if (version < 7 && hasNativeData(db.prepare('SELECT data FROM applications').all().map(row=>JSON.parse(row.data)),journey)) throw new Error('Use portable v7 for native follow-up.')
+    const dailyInbox=dailySnapshot(db)
+    if(version<7 && (dailyInbox.length || journey.offers.some(o=>o.dailyProposal))) throw Error('Use portable v7 for daily proposals.')
     const payload = {
       revision: db.prepare('SELECT revision FROM persistence_revision WHERE singleton = 1').get().revision,
       applications: db.prepare('SELECT data FROM applications ORDER BY id').all().map((row) => JSON.parse(row.data)),
@@ -41,12 +44,13 @@ export function exportSnapshot(db, settings, version = 7) {
     if (version >= 4) payload.journey = journey
     if (version >= 5) payload.interviewPlans = interviewPlans
     if (version >= 6) payload.cvOriginals = originals
+    if(version>=7 && dailyInbox.length) payload.dailyInbox=dailyInbox
     return { format: 'jobpilot-portable', version, exportedAt: new Date().toISOString(), checksum: checksum(payload), payload }
   })()
 }
 
 export function validateSnapshot(snapshot) {
-  if (!snapshot || snapshot.format !== 'jobpilot-portable' || ![1, 2, 3, 4, 5, 6, 7].includes(snapshot.version) || !snapshot.payload || snapshot.checksum !== checksum(snapshot.payload) || Object.keys(snapshot.payload).some((key) => !['revision', 'applications', 'analyses', 'settings', ...(snapshot.version >= 2 ? ['monitoring'] : []), ...(snapshot.version >= 3 ? ['actions', 'notificationReads'] : []), ...(snapshot.version >= 4 ? ['journey'] : []), ...(snapshot.version >= 5 ? ['interviewPlans'] : []), ...(snapshot.version >= 6 ? ['cvOriginals'] : [])].includes(key))) throw new Error('Invalid snapshot or checksum.')
+  if (!snapshot || snapshot.format !== 'jobpilot-portable' || ![1, 2, 3, 4, 5, 6, 7].includes(snapshot.version) || !snapshot.payload || snapshot.checksum !== checksum(snapshot.payload) || Object.keys(snapshot.payload).some((key) => !['revision', 'applications', 'analyses', 'settings', ...(snapshot.version >= 2 ? ['monitoring'] : []), ...(snapshot.version >= 3 ? ['actions', 'notificationReads'] : []), ...(snapshot.version >= 4 ? ['journey'] : []), ...(snapshot.version >= 5 ? ['interviewPlans'] : []), ...(snapshot.version >= 6 ? ['cvOriginals'] : []), ...(snapshot.version >= 7 ? ['dailyInbox'] : [])].includes(key))) throw new Error('Invalid snapshot or checksum.')
   const { revision, applications, analyses, settings } = snapshot.payload
   if (!Number.isSafeInteger(revision) || revision < 0 || !settings || Array.isArray(settings) || typeof settings !== 'object' || Object.entries(settings).some(([field, value]) => !PUBLIC_FIELDS.includes(field) || typeof value !== 'string' || value.length > 100000)) throw new Error('Invalid snapshot settings.')
   for (const rows of [applications, analyses]) {
@@ -62,6 +66,8 @@ export function validateSnapshot(snapshot) {
   if (snapshot.version < 7 && (snapshot.payload.monitoring?.events.some(event=>event.diagnostic !== undefined) || snapshot.payload.journey?.documentVersions.some(value=>value.sources.generationProvider !== undefined))) throw new Error('AI diagnostics and generation provenance require portable v7.')
   if (snapshot.version < 7 && hasNativeData(applications,snapshot.payload.journey??emptyJourney())) throw new Error('Native follow-up requires portable v7.')
   applications.forEach(application=>validatePreparation(application,snapshot.payload.cvOriginals??[],snapshot.payload.journey??emptyJourney()))
+  if(snapshot.version<7 && snapshot.payload.journey?.offers.some(o=>o.dailyProposal)) throw Error('Daily proposals require portable v7.')
+  validateDailyReceipts(snapshot.payload.dailyInbox??[],snapshot.payload.journey?.offers??[])
   applications.forEach(validateApplicationEvents)
   applications.forEach(validateRegisterProjection)
   return snapshot.payload
@@ -89,6 +95,7 @@ export function restoreSnapshot(snapshot, destination) {
       restoreJourney(db, snapshot.version >= 4 ? payload.journey : emptyJourney())
       restoreInterviews(db, snapshot.version >= 5 ? payload.interviewPlans : [])
       restoreOriginals(db, snapshot.version >= 6 ? payload.cvOriginals : [])
+      restoreDailyInbox(db,payload.dailyInbox??[])
     })()
     assertDatabaseIntegrity(db)
     bytes = db.serialize()

@@ -1,5 +1,6 @@
 import { registerNativeRoutes, exportRegisterCsv, validatePreparation } from './register-native.mjs'
 import { createAiService } from './modules/ai/service.mjs'
+import { initializeDailyInbox, dailySnapshot, registerDailyRoutes } from './daily-inbox.mjs'
 import { retrieveOffer } from './offer-fetch.mjs'
 import { initializeOriginals, originalSnapshot, originalMetadata, registerOriginalRoutes } from './cv-originals.mjs'
 import express from 'express'
@@ -29,8 +30,9 @@ export function initializeDatabase(db) {
   initializeJourney(db)
   initializeInterviews(db)
   initializeOriginals(db)
+  initializeDailyInbox(db)
 }
-export function createApp({ db, protector, port, development = false, fetchProvider = fetch, offerRetriever = retrieveOffer, backupDirectory }) {
+export function createApp({ db, protector, port, development = false, fetchProvider = fetch, offerRetriever = retrieveOffer, backupDirectory, dailyStatus = ()=>null }) {
   assertDatabaseIntegrity(db)
   initializeDatabase(db)
   const credentials = createCredentialStore(db, protector)
@@ -77,6 +79,7 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   registerSubmissionRoutes(app, db, confirmWrite)
   registerInterviewRoutes(app, db, confirmWrite)
   registerOriginalRoutes(app, db, confirmWrite)
+  registerDailyRoutes(app, db, confirmWrite)
   app.post('/api/offers/retrieve', async (req,res,next) => {
     try { if (!req.body || Object.keys(req.body).some(key=>key !== 'url') || typeof req.body.url !== 'string') return res.status(400).json({error:'Lien invalide.'}); res.json(await offerRetriever(req.body.url)) } catch(error) { next(error) }
   })
@@ -93,6 +96,8 @@ export function createApp({ db, protector, port, development = false, fetchProvi
   app.get('/api/state', (_req, res) => {
     const state = db.transaction(() => ({
       revision: writes.revision(),
+      dailyInbox: dailySnapshot(db),
+      dailyStatus: dailyStatus(),
       cvOriginals: originalSnapshot(db).map(originalMetadata),
       ...planningSnapshot(db),
       journey: journeySnapshot(db),
@@ -231,5 +236,5 @@ export function createApp({ db, protector, port, development = false, fetchProvi
     if ([400, 409].includes(err.status) && !err.type) return res.status(err.status).json({ error: err.message })
     res.status(err.type === 'entity.parse.failed' ? 400 : err.type === 'entity.too.large' ? 413 : 500).json({ error: 'Opération locale impossible ; aucune confirmation de sauvegarde.' })
   })
-  return { app, token, credentials, acceptsHostAndOrigin: (headers) => hosts.has(headers.host) && (!headers.origin || origins.has(headers.origin)) }
+  return { app, token, credentials, writes, acceptsHostAndOrigin: (headers) => hosts.has(headers.host) && (!headers.origin || origins.has(headers.origin)) }
 }

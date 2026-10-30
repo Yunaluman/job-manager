@@ -1,3 +1,4 @@
+import type { DailyReceipt } from '../shared/contracts/daily-types'
 import type { CvOriginal } from './originals'
 import { useSyncExternalStore } from 'react'
 import type { Application } from '../shared/contracts/types'
@@ -13,6 +14,8 @@ import type { InterviewPlan } from '../shared/contracts/interview-types'
 import { validateInterviewPlans } from '../shared/domain/interviews-core.mjs'
 
 export interface DataState {
+  dailyInbox:DailyReceipt[]
+  dailyStatus?:{checkedAt:string|null;error:string|null}|null
   cvOriginals: CvOriginal[]
   revision: number
   applications: Application[]
@@ -25,7 +28,7 @@ export interface DataState {
   interviewPlans: InterviewPlan[]
 }
 const initialState: DataState = {
-  cvOriginals: [], revision: 0, applications: [], analyses: [], actions: [], notificationReads: [], interviewPlans: [],
+  dailyInbox:[], cvOriginals: [], revision: 0, applications: [], analyses: [], actions: [], notificationReads: [], interviewPlans: [],
   journey: { offers: [], criteria: [], qualifications: [], documents: [], documentVersions: [], submissions: [] },
   aiConfig: { monthlyLimitCents: null, tariffs: [] },
   settings: { keyStatus: {}, baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', cvText: '', profileName: '', profileEmail: '', profilePhone: '', profileCity: '', profileTitle: '' },
@@ -41,7 +44,7 @@ export const dataStore = createConfirmedStore<DataState>({
     loaded.actions.forEach(validateAction); loaded.notificationReads.forEach(validateNotificationReadState)
     validateInterviewPlans(loaded.interviewPlans, loaded.actions)
     if (!loaded.aiConfig || !Array.isArray(loaded.aiConfig.tariffs) || (loaded.aiConfig.monthlyLimitCents !== null && (!Number.isSafeInteger(loaded.aiConfig.monthlyLimitCents) || loaded.aiConfig.monthlyLimitCents < 0))) throw new Error('Configuration IA absente ou invalide. Redémarre JobPilot puis synchronise.')
-    return { ...loaded, settings: { ...initialState.settings, ...loaded.settings } }
+    return { ...loaded, dailyInbox:loaded.dailyInbox??[], settings: { ...initialState.settings, ...loaded.settings } }
   },
   persist: (operation, revision) => apiWrite(operation.method, operation.path, operation.body, revision),
 })

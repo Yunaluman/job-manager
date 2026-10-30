@@ -7,6 +7,8 @@ import { NotificationCenter } from './NotificationCenter'
 import { PersistenceBanner } from './PersistenceBanner'
 import { ThemePicker } from './ThemePicker'
 import { AiBudgetBanner } from '../features/activity/AiBudgetBanner'
+import { dataStore } from '../data'
+import { hasUnsavedDrafts } from './DraftGuard'
 
 const destinations = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -23,6 +25,10 @@ const destinations = [
 const linkClass = 'app-nav-link flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors'
 
 export function Layout() {
+  useEffect(()=>{
+    const timer=setInterval(()=>{const status=dataStore.getStatus();if(document.visibilityState==='visible'&&status.ready&&!status.blocked&&!status.pending&&!hasUnsavedDrafts())void dataStore.refresh().catch(()=>{})},30000)
+    return ()=>clearInterval(timer)
+  },[])
   const [open, setOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const navigation = useRef<HTMLElement>(null)

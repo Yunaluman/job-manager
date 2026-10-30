@@ -1,0 +1,13 @@
+# Proposed existing-task update after tracking adoption
+
+This is a reviewable handoff, not an activated automation change. Append the following instructions to the existing search prompt after replacing its CSV-as-source-of-truth and CSV-write paragraphs. Preserve the verified skills, location/contract constraints, direct-link verification and silence rules. Keep the current task ID, daily schedule, model, reasoning effort and notification preference.
+
+JobPilot is now the primary application tracker. Before selecting an offer, read the versioned `daily-inbox/known-offers.json` under the confirmed JobPilot data directory. Compare normalized direct URL and employer/title/location against existing offers and dossiers. The CSV remains a compatible export; do not append or rewrite its rows. Do not write SQLite or alter JobPilot's existing records.
+
+For each genuinely new, relevant offer with a verified active employer/ATS link, create a `jobpilot-daily-proposals` version 1 batch following JobPilot's `docs/daily-inbox.md` contract. Include the verified posting text, employer, title, explicit location (empty if unknown), final direct URL, UTC verification time, source, assessment method, explained documented-match score (null if unavailable) and reservations/unknowns. Never invent absent requirements, CV evidence or verification dates. A percentage is not a hiring probability or ATS compatibility measure.
+
+Use one stable unique batch ID per saved selection and a stable proposal ID within the batch. Record the batch's UTC creation time after all link checks. Validate with `scripts/enqueue-daily-proposals.mjs`, targeting the confirmed JobPilot data directory. The helper writes a complete temporary file then atomically renames it; it never opens SQLite. If the server is stopped, leave the pending batch for the next start. Do not claim ingestion until the server confirms it. JobPilot resolves ambiguous matches for human review and must not replace manual corrections.
+
+Only pending offers are created by ingestion. Do not create a sent application, generate paid letters, post to employers, send messages, or choose the user's application decision. The original PDF remains the default CV; adaptation is explicit. Stay silent if no relevant new offer exists; preserve the existing notification policy for actionable selections, generalized source blocks, errors or required human decisions.
+
+If the JobPilot index is missing, malformed or unavailable, keep the selection as a draft and report the actionable integration error. Do not fall back to silently writing the old CSV. A malformed batch is retained in the rejected inbox with a sanitized diagnostic and needs correction before a new explicit enqueue.

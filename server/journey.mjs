@@ -1,4 +1,5 @@
 import { qualificationSummary, validateQualificationProposals } from '../shared/domain/qualification-core.mjs'
+import { validateDailyProvenance } from '../shared/domain/daily-proposals.mjs'
 import { randomUUID } from 'node:crypto'
 import { validateDocument, validateDocumentVersion, validateDocumentLinks } from './document-model.mjs'
 import { cvText } from '../shared/domain/cv-document.mjs'
@@ -15,12 +16,14 @@ export function validateCriterion(value) {
   if (!exact(value, ['id', 'label', 'importance']) || !id(value.id) || !string(value.label, 300) || !value.label.trim() || !['required', 'preferred'].includes(value.importance)) fail('Critère invalide.')
 }
 export function validateOfferInput(value) {
-  if (!exact(value, ['id', 'company', 'title', 'text', 'url', 'note', 'acquisition']) || !id(value.id) || !string(value.company, 300) || !value.company.trim() || !string(value.title, 300) || !value.title.trim() || !string(value.text) || !value.text.trim() || !string(value.note, 10000) || !string(value.url, 2000) || !url(value.url)) fail('Offre invalide. Vérifie l’entreprise, le poste et le contenu.')
+  if (!exact(value, ['id', 'company', 'title', 'text', 'url', 'note', 'acquisition', 'location']) || !id(value.id) || !string(value.company, 300) || !value.company.trim() || !string(value.title, 300) || !value.title.trim() || !string(value.text) || !value.text.trim() || !string(value.note, 10000) || !string(value.url, 2000) || !url(value.url)) fail('Offre invalide. Vérifie l’entreprise, le poste et le contenu.')
+  if(value.location !== undefined && !string(value.location,300)) fail('Localisation invalide.')
   if (value.acquisition !== undefined && (!exact(value.acquisition, ['initialUrl','finalUrl','retrievedAt','text']) || !string(value.acquisition.initialUrl,2000) || !value.acquisition.initialUrl || !url(value.acquisition.initialUrl) || !string(value.acquisition.finalUrl,2000) || !value.acquisition.finalUrl || !url(value.acquisition.finalUrl) || !date(value.acquisition.retrievedAt) || !string(value.acquisition.text) || !value.acquisition.text.trim())) fail('Provenance de récupération invalide.')
 }
 export function validateOffer(value) {
   if (!value || typeof value !== 'object') fail('Offre invalide.')
-  const { createdAt, updatedAt, decision, applicationId, decisions, ...input } = value; validateOfferInput(input)
+  const { createdAt, updatedAt, decision, applicationId, decisions, dailyProposal, ...input } = value; validateOfferInput(input)
+  if (dailyProposal !== undefined) validateDailyProvenance(dailyProposal)
   if (!date(createdAt) || !date(updatedAt) || !['pending', 'go', 'later', 'rejected'].includes(decision) || (applicationId !== undefined && !id(applicationId)) || !Array.isArray(decisions) || decisions.length > 1000 || decisions.some((entry) => !exact(entry, ['at', 'decision', 'reason']) || !date(entry.at) || !['go', 'later', 'rejected'].includes(entry.decision) || !string(entry.reason, 10000) || (entry.decision === 'rejected' && !entry.reason.trim()))) fail('Historique de décision invalide.')
 }
 export function validateQualification(value) {
@@ -63,7 +66,7 @@ export function registerJourneyRoutes(app, db, confirmWrite) {
   })
   app.put('/api/offers/:id', (req, res) => {
     validateOfferInput(req.body); if (req.body.id !== req.params.id) fail('Identifiant incohérent.')
-    confirmWrite(req, res, () => { const old = get('offers', req.params.id), now = new Date().toISOString(); if (!old && journeySnapshot(db).offers.length >= 10000) fail('Limite d’offres atteinte.'); const saved = { ...req.body, createdAt: old?.createdAt ?? now, updatedAt: now, decision: old?.decision ?? 'pending', decisions: old?.decisions ?? [], ...(old?.applicationId ? { applicationId: old.applicationId } : {}) }; put('offers', saved); return saved })
+    confirmWrite(req, res, () => { const old = get('offers', req.params.id), now = new Date().toISOString(); if (!old && journeySnapshot(db).offers.length >= 10000) fail('Limite d’offres atteinte.'); const saved = { ...req.body, ...(old?.dailyProposal ? {dailyProposal:old.dailyProposal} : {}), ...(old?.location !== undefined && req.body.location === undefined ? {location:old.location} : {}), createdAt: old?.createdAt ?? now, updatedAt: now, decision: old?.decision ?? 'pending', decisions: old?.decisions ?? [], ...(old?.applicationId ? { applicationId: old.applicationId } : {}) }; put('offers', saved); return saved })
   })
   app.post('/api/offers/:id/qualification', (req, res) => confirmWrite(req, res, () => {
     const offer = get('offers', req.params.id); if (!offer) fail('Offre introuvable.')
@@ -86,7 +89,7 @@ export function registerJourneyRoutes(app, db, confirmWrite) {
     const offer = get('offers', req.params.id); if (!offer) fail('Offre introuvable.')
     const now = new Date().toISOString(); let application
     if (req.body.decision === 'go' && !offer.applicationId) {
-      application = { id: randomUUID(), company: offer.company, title: offer.title, url: offer.url, jobText: offer.text, status: 'a_postuler', createdAt: now, updatedAt: now, history: [{ date: now, event: 'Décision explicite de préparer la candidature' }], events: [], eventHistoryComplete: false }
+      application = { id: randomUUID(), company: offer.company, title: offer.title, location: offer.location ?? '', url: offer.url, jobText: offer.text, status: 'a_postuler', createdAt: now, updatedAt: now, history: [{ date: now, event: 'Décision explicite de préparer la candidature' }], events: [], eventHistoryComplete: false }
       put('applications', application); offer.applicationId = application.id
     }
     if (req.body.decision === 'go' && offer.applicationId && !application) { application = get('applications', offer.applicationId); if (!application) fail('Le dossier a été supprimé. Le lien historique est conservé.') }

@@ -2,9 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
-import { mkdtempSync, readdirSync, readFileSync, unlinkSync, rmdirSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve, dirname, basename } from 'node:path'
 import Database from 'better-sqlite3'
 
 async function reservePort() {
@@ -27,9 +27,10 @@ function launch(folder, port, dev = false) {
   return { child, ready, ended }
 }
 function clean(folder) {
-  // Only delete files in the exact directory created by this test.
-  for (const entry of readdirSync(folder)) unlinkSync(join(folder, entry))
-  rmdirSync(folder)
+  // Verify the exact test-created target before removing nested inbox files.
+  const target = resolve(folder)
+  if (dirname(target) !== resolve(tmpdir()) || !/^jobpilot-(runtime|collision)-/.test(basename(target))) throw new Error('Unexpected test directory.')
+  rmSync(target, {recursive:true,force:true})
 }
 test('production runtime bootstraps its session and serves guarded API and HTML routes', async () => {
   const folder = mkdtempSync(join(tmpdir(), 'jobpilot-runtime-'))
